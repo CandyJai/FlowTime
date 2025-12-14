@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FlowTime: Goal Tracker & Planner</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Fonts: Quicksand (圓潤英文) + Noto Sans TC (完整中文) -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* 字體設定 */
+        body { font-family: 'Quicksand', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* 隱藏滾動條 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 動畫 */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .modal-enter { animation: modalUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes modalUp { from { transform: translateY(100%) scale(0.95); } to { transform: translateY(0) scale(1); } }
+
+        /* 莫蘭迪色系 */
+        .bg-morandi-green { background-color: #dbe4d3; color: #5c6b50; }
+        .bg-morandi-blue { background-color: #dcebf5; color: #5a7b94; }
+        .bg-morandi-orange { background-color: #f7e3d2; color: #a67c52; }
+        .bg-morandi-gray { background-color: #f0f2f5; color: #7a869a; }
+        
+        /* FAB 展開動畫 */
+        .fab-menu { transition: all 0.3s ease; transform-origin: bottom right; }
+        .fab-menu.open { transform: scale(1); opacity: 1; pointer-events: auto; }
+        .fab-menu.closed { transform: scale(0.5); opacity: 0; pointer-events: none; }
+
+        @media (min-width: 640px) {
+            body { background-color: #f1f5f9; display: flex; justify-content: center; min-height: 100vh; }
+            #app-root { width: 100%; max-width: 420px; min-height: 100vh; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); }
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 50: '#f9fafb', 100: '#f3f4f6', 800: '#374151', 900: '#111827' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="app-root" class="bg-[#fafaf9] relative min-h-screen pb-24 overflow-hidden flex flex-col transition-colors duration-500">
+        
+        <!-- 頂部 Header -->
+        <header class="bg-white/80 backdrop-blur-md sticky top-0 z-30 px-6 pt-12 pb-4 border-b border-slate-100 flex justify-between items-end">
+            <div>
+                <h1 id="header-title" class="text-3xl font-bold text-slate-800">今日行程</h1>
+                <p id="header-subtitle" class="text-slate-400 text-xs mt-1 font-medium tracking-wide">載入中...</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="goToToday()" class="hidden text-xs bg-slate-800 text-white px-3 py-2 rounded-full font-bold shadow-md hover:bg-slate-700 transition-all" id="today-btn">回今天</button>
+            </div>
+        </header>
+
+        <!-- 主要內容區域 -->
+        <main id="main-content" class="flex-1 overflow-y-auto p-6 no-scrollbar relative z-10">
+            
+            <!-- 1. 今日視圖 -->
+            <div id="view-today" class="view-section fade-in space-y-6">
+                <!-- 習慣打卡區 -->
+                <div class="relative">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-slate-400 ml-1">每日習慣</span>
+                        <button onclick="openHabitModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="settings-2" class="w-4 h-4"></i></button>
+                    </div>
+                    <!-- 習慣列表容器 -->
+                    <div class="flex space-x-4 overflow-x-auto pb-2 no-scrollbar items-start" id="habits-list">
+                        <!-- JS 生成 -->
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div>
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-xl font-bold text-slate-800">今日流光</h2>
+                        <div class="flex space-x-2">
+                            <!-- 新增：碎片化任務按鈕 -->
+                            <button onclick="openFragmentModal()" class="text-xs bg-purple-100 text-purple-600 px-3 py-1 rounded-full flex items-center hover:bg-purple-200 font-bold">
+                                <i data-lucide="zap" class="w-3 h-3 mr-1"></i> 碎片化任務
+                            </button>
+                            <button onclick="openAddTaskModal()" class="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full flex items-center hover:bg-slate-200 font-bold">
+                                <i data-lucide="plus" class="w-3 h-3 mr-1"></i> 新增行程
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- UPDATED: 增加 max-height 和 overflow 以限制顯示數量 -->
+                    <div class="relative pl-5 border-l-2 border-slate-200 space-y-6 pb-4 max-h-[65vh] overflow-y-auto no-scrollbar" id="timeline-list">
+                        <!-- JS 生成時間軸 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 行事曆視圖 -->
+            <div id="view-calendar" class="view-section hidden fade-in space-y-5">
+                <div class="flex justify-between items-center bg-white p-5 rounded-3xl shadow-sm border border-slate-50">
+                    <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="chevron-left"></i></button>
+                    <h2 id="calendar-month-title" class="text-xl font-bold text-slate-800">Month</h2>
+                    <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="chevron-right"></i></button>
+                </div>
+
+                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-50">
+                    <div class="grid grid-cols-7 text-center text-xs text-slate-400 font-bold mb-4">
+                        <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-y-3 gap-x-1 text-sm font-medium">
+                        <!-- JS 生成日期 -->
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl p-5 border border-slate-50 shadow-sm min-h-[150px]">
+                    <h3 class="text-lg font-bold mb-3" id="selected-date-summary-title">行程概覽</h3>
+                    <!-- UPDATED: 增加 max-height -->
+                    <div id="selected-date-tasks" class="space-y-3 max-h-[40vh] overflow-y-auto no-scrollbar">
+                        <!-- JS 生成 -->
+                    </div>
+                    <button onclick="switchTab('today')" class="mt-4 w-full py-2 bg-white text-slate-700 rounded-xl text-sm font-medium shadow-sm">
+                        前往當日詳細視圖
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. 統計視圖 -->
+             <div id="view-stats" class="view-section hidden fade-in space-y-6">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xl text-slate-800 font-bold">時間分配統計</h2>
+                    <input type="month" id="stats-month-picker" class="bg-white border border-slate-200 rounded-xl px-3 py-1 text-sm outline-none" onchange="renderStats()">
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-50">
+                        <h3 class="text-sm text-slate-400 font-bold mb-4 text-center">本月專注類別</h3>
+                        <div class="h-64 relative">
+                            <canvas id="statsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div class="bg-morandi-green/30 p-4 rounded-2xl text-center">
+                            <div class="text-xs text-slate-500 mb-1">完成任務</div>
+                            <div class="text-2xl font-bold cute-font text-slate-700" id="stat-completed-tasks">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 目標庫視圖 -->
+            <div id="view-goals" class="view-section hidden fade-in space-y-6">
+                <!-- Vision Board -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xl font-bold text-slate-800">我的遠景</h2>
+                        <button onclick="openAddVisionModal()" class="text-slate-400 hover:text-slate-800"><i data-lucide="plus-circle"></i></button>
+                    </div>
+                    <div class="flex space-x-4 overflow-x-auto pb-4 no-scrollbar snap-x" id="vision-container">
+                        <!-- JS 生成 -->
+                    </div>
+                </div>
+
+                <!-- 任務列表與過濾 -->
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-slate-800">任務清單</h2>
+                         <!-- 修改: 改成呼叫 openCompletedGoalsModal -->
+                        <div class="flex space-x-2">
+                         <button onclick="openCompletedGoalsModal()" class="text-xs bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-bold hover:bg-slate-300 transition-colors flex items-center">
+                        <i data-lucide="archive" class="w-3 h-3 mr-1"></i> 已完成
+                        </button>
+                        <button onclick="openAddGoalModal()" class="text-sm bg-slate-800 text-white px-3 py-1 rounded-full font-bold">+ 新增</button>
+                    </div>
+                    </div>
+                    
+                    <!-- 分類過濾器 -->
+                    <div class="flex space-x-2 overflow-x-auto pb-2 no-scrollbar mb-2" id="category-filter">
+                        <button onclick="filterGoals('all')" class="cat-pill active px-4 py-1 rounded-full text-xs font-bold bg-slate-800 text-white transition-colors whitespace-nowrap">全部</button>
+                        <button onclick="filterGoals('work')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">工作</button>
+                        <button onclick="filterGoals('life')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">生活</button>
+                        <button onclick="filterGoals('health')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">健康</button>
+                        <button onclick="filterGoals('study')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">學習</button>
+                        <button onclick="filterGoals('entertainment')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">娛樂</button>
+                        <button onclick="filterGoals('others')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">其他</button>
+                        <!-- 修改: 移除了「已完成」過濾器 Pill -->
+                    </div>
+
+                    <!-- UPDATED: 增加 max-height 和 overflow -->
+                    <div class="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar" id="goals-list">
+                        <!-- JS 生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. 專案視圖 -->
+            <div id="view-projects" class="view-section hidden fade-in space-y-6">
+                 <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-bold text-slate-800">進行中專案</h2>
+                    <button onclick="openAddProjectModal()" class="text-slate-400 hover:text-slate-800"><i data-lucide="plus-circle"></i></button>
+                </div>
+                <!-- UPDATED: 增加 max-height -->
+                <div id="projects-list-active" class="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar">
+                    <!-- JS 生成 -->
+                </div>
+
+                <div class="mt-8">
+                    <h2 class="text-lg font-bold text-slate-400 mb-3">已完成專案</h2>
+                    <div id="projects-list-completed" class="space-y-4 opacity-70 max-h-[25vh] overflow-y-auto no-scrollbar">
+                        <!-- JS 生成 -->
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 懸浮按鈕 (FAB) -->
+        <div class="absolute bottom-24 right-6 z-30 flex flex-col items-end space-y-3">
+            <div id="fab-options" class="fab-menu closed flex flex-col items-end space-y-3">
+                <button onclick="openAddGoalModal(); toggleFab()" class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-bold text-slate-700">
+                    <span>新增目標 (Goal)</span> <i data-lucide="target" class="w-4 h-4"></i>
+                </button>
+                <button onclick="openAddTaskModal(); toggleFab()" class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-bold text-slate-700">
+                    <span>新增行程 (Task)</span> <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <button onclick="toggleFab()" class="w-14 h-14 bg-slate-800 rounded-full text-white shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                <i data-lucide="plus" class="w-7 h-7 transition-transform" id="fab-icon"></i>
+            </button>
+        </div>
+
+        <!-- 底部導航欄 -->
+        <nav class="bg-white/90 backdrop-blur-md border-t border-slate-100 h-20 px-4 flex justify-between items-center pb-2 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.02)]">
+            <button onclick="switchTab('today')" class="nav-btn active flex-1 flex flex-col items-center space-y-1 text-slate-800" data-target="today">
+                <i data-lucide="list-todo" class="w-6 h-6"></i><span class="text-[10px] font-bold">今日</span>
+            </button>
+            <button onclick="switchTab('calendar')" class="nav-btn flex-1 flex flex-col items-center space-y-1 text-slate-300" data-target="calendar">
+                <i data-lucide="calendar" class="w-6 h-6"></i><span class="text-[10px] font-bold">月曆</span>
+            </button>
+            <button onclick="switchTab('stats')" class="nav-btn flex-1 flex flex-col items-center space-y-1 text-slate-300" data-target="stats">
+                <i data-lucide="pie-chart" class="w-6 h-6"></i><span class="text-[10px] font-bold">統計</span>
+            </button>
+            <button onclick="switchTab('goals')" class="nav-btn flex-1 flex flex-col items-center space-y-1 text-slate-300" data-target="goals">
+                <i data-lucide="target" class="w-6 h-6"></i><span class="text-[10px] font-bold">目標</span>
+            </button>
+            <button onclick="switchTab('projects')" class="nav-btn flex-1 flex flex-col items-center space-y-1 text-slate-300" data-target="projects">
+                <i data-lucide="layout" class="w-6 h-6"></i><span class="text-[10px] font-bold">專案</span>
+            </button>
+        </nav>
+
+        <!-- === Modals === -->
+
+        <!-- 1. 新增/編輯 行程 Modal -->
+        <div id="modal-add-task" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-end justify-center backdrop-blur-sm" onclick="closeModal(event, 'modal-add-task')">
+            <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-5">
+                    <h3 class="text-xl font-bold flex items-center"><i data-lucide="calendar-plus" class="mr-2 w-5 h-5"></i> <span id="task-modal-title">新增行程</span></h3>
+                    <div class="flex bg-slate-100 rounded-lg p-1" id="task-source-toggle">
+                        <button onclick="toggleTaskSource('new')" class="px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm text-slate-800 transition-all" id="btn-source-new">新任務</button>
+                        <button onclick="toggleTaskSource('list')" class="px-3 py-1 rounded-md text-xs font-bold text-slate-400 transition-all" id="btn-source-list">已有任務</button>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="edit-task-id">
+
+                <!-- 模式 A: 直接輸入 -->
+                <div id="source-new-container">
+                    <input type="text" id="input-task-title" placeholder="要做什麼呢？" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 outline-none focus:ring-2 focus:ring-slate-200 text-lg font-bold">
+                    
+                    <div class="mb-4">
+                        <select id="input-task-category" class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-sm text-slate-700 font-bold">
+                            <option value="work">工作</option>
+                            <option value="life">生活</option>
+                            <option value="health">健康</option>
+                            <option value="study">學習</option>
+                            <option value="entertainment">娛樂</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 模式 B: 從清單選 -->
+                <div id="source-list-container" class="hidden mb-4">
+                    <select id="input-task-from-list" class="w-full p-4 bg-slate-50 rounded-2xl outline-none text-slate-700 font-bold" onchange="fillTaskFromList()">
+                        <option value="">-- 選擇一個待辦事項 --</option>
+                        <!-- JS 生成 -->
+                    </select>
+                </div>
+
+                <!-- 日期選擇 -->
+                <div class="mb-4">
+                    <label class="text-xs text-slate-400 font-bold mb-1 block ml-1">行程日期</label>
+                    <input type="date" id="input-task-date" class="w-full p-3 bg-slate-50 rounded-xl text-slate-700 font-bold outline-none">
+                </div>
+
+                <!-- 時間段選擇 -->
+                <div class="mb-4 bg-slate-50 p-4 rounded-2xl">
+                    <label class="text-xs text-slate-400 font-bold mb-2 block">時間段選擇</label>
+                    <div class="grid grid-cols-4 gap-2"> <!-- UPDATED: grid-cols-4 for All Day -->
+                        <button onclick="toggleTimeBlock('allday')" id="btn-block-allday" class="time-block-btn bg-green-50 text-green-600 py-2 rounded-xl text-xs font-bold border border-transparent hover:border-green-200 transition-all">全日</button>
+                        <button onclick="toggleTimeBlock('morning')" id="btn-block-morning" class="time-block-btn bg-sky-50 text-sky-600 py-2 rounded-xl text-xs font-bold border border-transparent hover:border-sky-200 transition-all">上午</button>
+                        <button onclick="toggleTimeBlock('afternoon')" id="btn-block-afternoon" class="time-block-btn bg-orange-50 text-orange-600 py-2 rounded-xl text-xs font-bold border border-transparent hover:border-orange-200 transition-all">下午</button>
+                        <button onclick="toggleTimeBlock('evening')" id="btn-block-evening" class="time-block-btn bg-indigo-50 text-indigo-600 py-2 rounded-xl text-xs font-bold border border-transparent hover:border-indigo-200 transition-all">晚上</button>
+                    </div>
+                </div>
+
+                <!-- 關聯目標 -->
+                <div class="mb-5" id="link-container">
+                    <label class="text-xs text-slate-400 font-bold ml-1 mb-1 block">遠景/專案</label>
+                    <select id="input-task-link" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm text-slate-600 font-bold">
+                        <option value="">獨立任務</option>
+                        <!-- JS 動態插入 -->
+                    </select>
+                </div>
+
+                <input type="hidden" id="selected-time-block" value="">
+                
+                <!-- 按鈕區 -->
+                <div class="flex space-x-3 mt-4">
+                    <button onclick="deleteTaskFromModal()" id="btn-delete-task" class="hidden flex-1 bg-red-100 text-red-500 py-4 rounded-2xl font-bold text-lg hover:bg-red-200 transition-colors">刪除</button>
+                    <button onclick="saveTask()" id="btn-save-task" class="w-full flex-[2] bg-slate-800 text-white py-4 rounded-2xl font-bold text-lg shadow-lg hover:scale-[1.02] transition-transform">確認新增</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 排程任務 Modal -->
+        <div id="modal-schedule-goal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-end justify-center backdrop-blur-sm" onclick="closeModal(event, 'modal-schedule-goal')">
+            <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <h3 class="text-xl font-bold mb-4 flex items-center"><i data-lucide="calendar-clock" class="mr-2 w-5 h-5"></i> 安排執行時間</h3>
+                <input type="hidden" id="schedule-goal-id">
+                <p id="schedule-goal-title" class="text-slate-500 font-bold mb-6 text-sm"></p>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold mb-1 block ml-1">日期</label>
+                        <input type="date" id="schedule-date" class="w-full p-3 bg-slate-50 rounded-xl font-bold text-slate-700 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 font-bold mb-1 block ml-1">時段</label>
+                        <div class="grid grid-cols-4 gap-2"> <!-- UPDATED: grid-cols-4 for All Day -->
+                             <button onclick="setScheduleBlock('allday')" id="sch-btn-allday" class="sch-block-btn p-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold">全日</button>
+                             <button onclick="setScheduleBlock('morning')" id="sch-btn-morning" class="sch-block-btn p-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold">上午</button>
+                             <button onclick="setScheduleBlock('afternoon')" id="sch-btn-afternoon" class="sch-block-btn p-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold">下午</button>
+                             <button onclick="setScheduleBlock('evening')" id="sch-btn-evening" class="sch-block-btn p-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold">晚上</button>
+                        </div>
+                        <input type="hidden" id="schedule-block" value="">
+                    </div>
+                </div>
+                
+                <button onclick="confirmScheduleGoal()" class="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold shadow-lg">加入行程</button>
+            </div>
+        </div>
+
+        <!-- NEW: 碎片化任務 Modal -->
+        <div id="modal-fragment-task" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-6" onclick="closeModal(event, 'modal-fragment-task')">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 modal-enter max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold flex items-center"><i data-lucide="zap" class="mr-2 w-5 h-5 text-purple-500"></i>碎片化任務</h3>
+                    <button onclick="closeModal(null, 'modal-fragment-task')" class="text-slate-400"><i data-lucide="x"></i></button>
+                </div>
+                <p class="text-xs text-slate-400 mb-4">這些是您尚未排程的待辦任務。點擊即可標記完成並紀錄於今日。</p>
+                <div id="fragment-list" class="flex-1 overflow-y-auto space-y-3 p-1">
+                    <!-- JS 生成 -->
+                </div>
+            </div>
+        </div>
+
+
+        <!-- 3. 新增/編輯 遠景 Modal -->
+        <div id="modal-vision" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-4" onclick="closeModal(event, 'modal-vision')">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <h3 class="text-xl font-bold mb-4" id="vision-modal-title">設定遠景</h3>
+                <input type="hidden" id="edit-vision-id"> 
+                <input type="text" id="input-vision-title" placeholder="例如：精通日語" class="w-full p-3 bg-slate-50 rounded-xl mb-3 outline-none font-bold">
+                <div class="flex space-x-2 mb-4">
+                    <div class="flex-1">
+                        <label class="text-xs text-slate-400 ml-1">截止日期</label>
+                        <input type="date" id="input-vision-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-sm outline-none font-bold">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block w-full h-24 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <i data-lucide="image-plus" class="mb-1"></i>
+                        <span id="vision-file-label" class="text-xs">上傳背景圖片</span>
+                        <input type="file" id="input-vision-img" accept="image/*" class="hidden" onchange="handleImageUpload(this)">
+                    </label>
+                </div>
+                <input type="hidden" id="input-vision-img-data">
+                 <div class="flex space-x-2">
+                    <button onclick="deleteVision()" id="btn-delete-vision" class="hidden w-1/3 bg-red-100 text-red-500 py-3 rounded-xl font-bold">刪除</button>
+                    <button onclick="saveVision()" id="btn-save-vision" class="w-full bg-indigo-500 text-white py-3 rounded-xl font-bold shadow-md">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. 新增目標 (Goal) Modal -->
+        <div id="modal-add-goal" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-end justify-center backdrop-blur-sm" onclick="closeModal(event, 'modal-add-goal')">
+            <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <h3 class="text-xl font-bold mb-4" id="goal-modal-title">新增待辦目標</h3>
+                <input type="hidden" id="edit-goal-id"> 
+                <input type="text" id="input-goal-title" placeholder="任務名稱" class="w-full p-4 bg-slate-50 rounded-2xl mb-3 outline-none text-lg font-bold">
+                <div class="flex space-x-2 mb-3">
+                    <select id="input-goal-category" class="p-3 bg-slate-50 rounded-xl outline-none flex-1 text-sm font-bold">
+                        <option value="work">工作</option>
+                        <option value="life">生活</option>
+                        <option value="health">健康</option>
+                        <option value="study">學習</option>
+                        <option value="entertainment">娛樂</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="text-xs text-slate-400 font-bold ml-1 mb-1 block">遠景/專案</label>
+                    <select id="input-goal-parent" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm text-slate-600 font-bold">
+                        <option value="">獨立任務</option>
+                        <optgroup label="遠景" id="optgroup-visions"></optgroup>
+                        <optgroup label="專案" id="optgroup-projects"></optgroup>
+                    </select>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="deleteGoal()" id="btn-delete-goal" class="hidden w-1/3 bg-red-100 text-red-500 py-3 rounded-2xl font-bold">刪除</button>
+                    <button onclick="saveGoal()" id="btn-save-goal" class="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold shadow-lg">加入清單</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5. 習慣管理 Modal -->
+        <div id="modal-habits" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-4" onclick="closeModal(event, 'modal-habits')">
+             <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 modal-enter relative" onclick="event.stopPropagation()">
+                <button onclick="closeModal(null, 'modal-habits')" class="absolute top-4 right-4 text-slate-400"><i data-lucide="x"></i></button>
+                <h3 class="text-xl font-bold mb-4">管理每日習慣</h3>
+                <ul id="habit-manage-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto"></ul>
+                <div class="pt-4 border-t border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-500 mb-2">新增習慣</h4>
+                    <div class="flex space-x-2">
+                        <input type="text" id="new-habit-title" placeholder="名稱" class="flex-1 p-2 bg-slate-50 rounded-xl text-sm outline-none font-bold">
+                        <select id="new-habit-icon" class="p-2 bg-slate-50 rounded-xl outline-none text-sm w-24">
+                            <option value="droplets">水滴</option>
+                            <option value="book-open">書本</option>
+                            <option value="moon">月亮</option>
+                            <option value="sun">太陽</option>
+                            <option value="coffee">咖啡</option>
+                            <option value="dumbbell">啞鈴</option>
+                        </select>
+                        <button onclick="addHabit()" class="bg-slate-800 text-white p-2 rounded-xl"><i data-lucide="plus"></i></button>
+                    </div>
+                </div>
+             </div>
+        </div>
+        
+        <!-- 6. 新增專案 Modal -->
+        <div id="modal-add-project" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-end justify-center backdrop-blur-sm" onclick="closeModal(event, 'modal-add-project')">
+            <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <h3 class="text-xl font-bold mb-4" id="project-modal-title">新增專案</h3>
+                <input type="hidden" id="edit-project-id"> 
+                <input type="text" id="input-project-title" placeholder="專案名稱" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 outline-none text-lg font-bold">
+                 <div class="mb-4">
+                     <label class="text-xs text-slate-400 ml-1">完成日期</label>
+                     <input type="date" id="input-project-deadline" class="w-full p-3 bg-slate-50 rounded-xl text-sm outline-none font-bold">
+                 </div>
+                 <div class="flex space-x-2">
+                <button onclick="deleteProject()" id="btn-delete-project" class="hidden w-1/3 bg-red-100 text-red-500 py-3 rounded-2xl font-bold">刪除</button>
+                <button onclick="saveProject()" id="btn-save-project" class="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold shadow-lg">建立專案</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. 詳情瀏覽 Modal (查看遠景/專案內容) -->
+        <div id="modal-detail" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-4" onclick="closeModal(event, 'modal-detail')">
+             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 modal-enter max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold" id="detail-title">詳情</h3>
+                    <button onclick="closeModal(null, 'modal-detail')" class="text-slate-400"><i data-lucide="x"></i></button>
+                </div>
+                <div id="detail-list" class="flex-1 overflow-y-auto space-y-3 p-1">
+                    <!-- JS 生成 -->
+                </div>
+             </div>
+        </div>
+        
+        <!-- 8. 完成任務確認 Modal (NEW) -->
+        <div id="modal-complete-confirm" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-6" onclick="closeModal(event, 'modal-complete-confirm')">
+            <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+                <input type="hidden" id="pending-complete-task-id">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 text-slate-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">恭喜完成！</h3>
+                    <p class="text-sm text-slate-500">這個任務是否已經全部結束了？<br>還是需要下次繼續執行？</p>
+                </div>
+                <div class="space-y-3">
+                    <button onclick="confirmTaskAction('finish')" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center">
+                        <i data-lucide="check-check" class="w-4 h-4 mr-2"></i> 完成任務
+                    </button>
+                    <button onclick="confirmTaskAction('continue')" class="w-full py-3 bg-white border-2 border-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-colors flex items-center justify-center">
+                        <i data-lucide="history" class="w-4 h-4 mr-2"></i> 下次繼續 (保留任務)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+         <!-- 9. 已完成 Modal (查看已完成任務列表) - UPDATED -->
+    <div id="completed-detail" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center backdrop-blur-sm px-4" onclick="closeModal(event, 'completed-detail')">
+             <div class="bg-white w-full max-w-md rounded-[2rem] p-6 modal-enter max-h-[80vh] flex flex-col" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold" id="completed-title">已完成任務</h3>
+                    <button onclick="closeModal(null, 'completed-detail')" class="text-slate-400"><i data-lucide="x"></i></button>
+                </div>
+                <div id="completed-list" class="flex-1 overflow-y-auto space-y-3 p-1">
+                    <!-- JS 生成 -->
+                </div>
+             </div>
+        </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // --- 1. 初始化 ---
+        
+        const defaultState = {
+            theme: 'none',
+            todos: [], // Merged tasks and goals
+            visions: [],
+            projects: [],
+            habits: [
+                { id: 'h1', title: '喝水', icon: 'droplets', completed: false, lastDate: '' },
+                { id: 'h2', title: '閱讀', icon: 'book-open', completed: false, lastDate: '' }
+            ]
+        };
+
+        // Migration from V3 (Split Arrays) to V4 (Unified Array)
+        let rawData = localStorage.getItem('flowtimeDataV3');
+        let appData;
+        
+        if (rawData) {
+             let oldData = JSON.parse(rawData);
+             // Simple migration: if 'todos' doesn't exist but 'tasks' or 'goals' do, merge them.
+             if (!oldData.todos && (oldData.tasks || oldData.goals)) {
+                 appData = {
+                     theme: oldData.theme || 'none',
+                     todos: [...(oldData.tasks || []), ...(oldData.goals || [])],
+                     visions: oldData.visions || [],
+                     projects: oldData.projects || [],
+                     habits: oldData.habits || defaultState.habits
+                 };
+             } else {
+                 appData = oldData;
+             }
+        } else {
+            appData = defaultState;
+        }
+
+        let currentDateStr = new Date().toISOString().split('T')[0];
+        let calendarViewDate = new Date();
+        let chartInstance = null;
+        let selectedTaskSource = 'new'; 
+
+        const categoryColors = {
+            work: 'bg-morandi-blue', life: 'bg-morandi-green', health: 'bg-morandi-orange', study: 'bg-morandi-purple', entertainment: 'bg-morandi-red', other: 'bg-morandi-gray'
+        };
+
+        // --- 2. 渲染核心 ---
+
+        function renderAll() {
+            renderHeader(); // 更新頭部資訊
+            renderHabits();
+            renderTimeline();
+            renderGoals();
+            renderProjects();
+            renderCalendar();
+            lucide.createIcons();
+            populateOptions();
+            
+            const now = new Date();
+            const monthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+            if(document.getElementById('stats-month-picker')) document.getElementById('stats-month-picker').value = monthStr;
+        }
+
+        // 新增的 Header 渲染函式，處理標題和日期
+        function renderHeader() {
+            const activeTabBtn = document.querySelector('.nav-btn.active');
+            const target = activeTabBtn ? activeTabBtn.dataset.target : 'today';
+            const titleEl = document.getElementById('header-title');
+            const subtitleEl = document.getElementById('header-subtitle');
+            const todayBtn = document.getElementById('today-btn');
+
+            // 計算日期字串
+            const dateObj = new Date(currentDateStr);
+            const dateStr = dateObj.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' });
+
+            // 根據分頁更新標題
+            if (target === 'today') {
+                titleEl.innerText = '今日行程';
+                subtitleEl.innerText = dateStr;
+                
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (currentDateStr !== todayStr) {
+                    todayBtn.classList.remove('hidden');
+                } else {
+                    todayBtn.classList.add('hidden');
+                }
+            } else if (target === 'calendar') {
+                titleEl.innerText = '月曆總覽';
+                subtitleEl.innerText = '查看所有行程';
+                todayBtn.classList.add('hidden');
+            } else if (target === 'stats') {
+                titleEl.innerText = '數據統計';
+                subtitleEl.innerText = '時間分配分析';
+                todayBtn.classList.add('hidden');
+            } else if (target === 'goals') {
+                titleEl.innerText = '目標庫';
+                subtitleEl.innerText = '遠景與待辦清單';
+                todayBtn.classList.add('hidden');
+            } else if (target === 'projects') {
+                titleEl.innerText = '專案管理';
+                subtitleEl.innerText = '進度追蹤';
+                todayBtn.classList.add('hidden');
+            }
+        }
+
+        function toggleThemeMenu() { document.getElementById('theme-menu').classList.toggle('hidden'); }
+
+
+        function renderHabits() {
+            const list = document.getElementById('habits-list');
+            list.innerHTML = appData.habits.map(h => {
+                if(h.lastDate !== currentDateStr) { h.completed = false; }
+                return `
+                <button onclick="toggleHabit('${h.id}')" class="flex flex-col items-center min-w-[60px] group transition-opacity ${h.completed ? 'opacity-50' : 'opacity-100'}">
+                    <div class="w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${h.completed ? 'bg-slate-200 border-slate-200 text-slate-400' : 'bg-white border-slate-200 text-slate-600 group-hover:border-slate-300'}">
+                        <!-- Icon logic: show original if not completed, show check if completed -->
+                        <i data-lucide="${h.icon}" class="w-5 h-5 ${h.completed ? 'hidden' : ''}"></i>
+                        <i data-lucide="check" class="w-5 h-5 ${h.completed ? '' : 'hidden'}"></i>
+                    </div>
+                    <span class="text-[10px] mt-1 text-slate-400 font-bold">${h.title}</span>
+                </button>
+            `}).join('');
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-list');
+            let html = '';
+            
+            // Unified: Tasks are items with the current date
+            const tasksToday = appData.todos.filter(t => t.date === currentDateStr);
+            
+            // 分類
+            const allday = tasksToday.filter(t => t.timeBlock === 'allday'); // New All Day
+            const morning = tasksToday.filter(t => t.timeBlock === 'morning');
+            const afternoon = tasksToday.filter(t => t.timeBlock === 'afternoon');
+            const evening = tasksToday.filter(t => t.timeBlock === 'evening');
+            const fragment = tasksToday.filter(t => t.timeBlock === 'fragment'); 
+            
+            // Updated Order: All Day -> Morning -> Afternoon -> Evening -> Fragment
+            if(allday.length) html += createFuzzyBlock('全日', 'bg-green-50 text-green-600', allday);
+            if(morning.length) html += createFuzzyBlock('上午', 'bg-sky-50 text-sky-400', morning);
+            if(afternoon.length) html += createFuzzyBlock('下午', 'bg-orange-50 text-orange-400', afternoon);
+            if(evening.length) html += createFuzzyBlock('晚上', 'bg-indigo-50 text-indigo-400', evening);
+            if(fragment.length) html += createFuzzyBlock('碎片化任務', 'bg-purple-50 text-purple-400', fragment);
+
+            if(tasksToday.length === 0) html = `<div class="text-center text-slate-400 py-10 opacity-50"><i data-lucide="coffee" class="w-10 h-10 mx-auto mb-2"></i><p>今天很清閒呢</p></div>`;
+
+            container.innerHTML = html;
+        }
+
+        function createFuzzyBlock(title, style, tasks) {
+            return `
+                <div class="relative pl-3 border-l-4 border-slate-100 ml-[-7px]">
+                    <h4 class="text-xs font-bold ${style.split(' ')[1]} mb-2 uppercase tracking-wider">${title}</h4>
+                    <div class="${style.split(' ')[0]} p-3 rounded-2xl mb-4 space-y-2">
+                        ${tasks.map(t => createTaskCard(t, true)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function createTaskCard(task, isFuzzy = false) {
+            const colorClass = categoryColors[task.category] || categoryColors.other;
+            
+            // Modified: onclick triggers tryCompleteTask
+            return `
+                <div class="relative group">
+                    <div onclick="openEditTaskModal('${task.id}')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center active:scale-95 transition-transform cursor-pointer ${task.completed ? 'opacity-50 grayscale' : ''}">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full ${colorClass} mr-3"></div>
+                            <div>
+                                <div class="font-bold text-slate-700 text-sm ${task.completed ? 'line-through' : ''}">${task.title}</div>
+                                <div class="text-[10px] text-slate-400 flex items-center font-bold">
+                                    ${task.linkTitle ? `<span class="ml-2 bg-slate-100 px-1 rounded text-slate-500">#${task.linkTitle}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div onclick="event.stopPropagation(); tryCompleteTask('${task.id}')" class="p-2 rounded-full hover:bg-slate-100">
+                             ${task.completed ? '<i data-lucide="check-circle-2" class="text-slate-300 w-6 h-6 fill-slate-100"></i>' : '<i data-lucide="circle" class="text-slate-200 w-6 h-6"></i>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 目標與專案 ---
+
+        function renderGoals() {
+            // Visions
+            const vContainer = document.getElementById('vision-container');
+            vContainer.innerHTML = appData.visions.map(v => {
+                const progress = calculateProgress('vision', v.id);
+                // 使用 object-cover 確保圖片適配
+                const bg = v.image ? `background-image: url('${v.image}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%)';
+                // FIXED: Changed p.id to v.id
+                return `
+                <div class="relative flex-shrink-0 w-72 h-40 rounded-[2rem] p-5 text-white shadow-lg overflow-hidden snap-center group cursor-pointer" style="${bg}" onclick="openDetailModal('vision', '${v.id}')">
+                    <div class="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors"></div>
+                    <div class="relative z-10 flex flex-col justify-between h-full">
+                        <div class="flex justify-between items-start">
+                            <h3 class="text-lg font-bold shadow-sm">${v.title}</h3>
+                            <button onclick="event.stopPropagation(); openEditVisionModal('${v.id}')" class="p-2 bg-white/20 rounded-full hover:bg-white/30 backdrop-blur-sm transition-all"><i data-lucide="pencil" class="w-3 h-3 text-white"></i></button>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 opacity-90 font-medium">
+                                <span>${v.deadline || '無期限'}</span>
+                                <span>${progress}%</span>
+                            </div>
+                            <div class="w-full bg-white/30 rounded-full h-1.5">
+                                <div class="bg-white h-1.5 rounded-full shadow-sm transition-all duration-1000" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+
+            // Goal List (Unified: Only show backlog items where date is null AND not completed)
+            const list = document.getElementById('goals-list');
+            const filter = document.querySelector('.cat-pill.active').getAttribute('onclick').split("'")[1];
+            
+            // Only get backlog items (no date) and not completed
+            let goalsToShow = appData.todos.filter(g => !g.date && !g.completed); 
+            
+            // Apply category filter if not 'all'
+            if (filter !== 'all') {
+                goalsToShow = goalsToShow.filter(g => g.category === filter);
+            }
+
+            list.innerHTML = goalsToShow.map(g => {
+                const color = categoryColors[g.category];
+                return `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center group">
+                    <div class="flex items-center">
+                        <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
+                            <div class="w-2 h-8 rounded-full ${color}"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-slate-700">${g.title}</div>
+                            <div class="text-xs text-slate-400 flex items-center font-bold">
+                                ${g.parentId ? '<span class="mr-2 text-indigo-400">🔗</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                        <div class="flex space-x-2">
+                        <button onclick="openEditGoalModal('${g.id}')" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                    <button onclick="openScheduleGoalModal('${g.id}')" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                    </div>
+                </div>
+            `}).join('');
+            
+            lucide.createIcons(); // Added: Re-render icons after DOM update
+        }
+
+        function calculateProgress(type, id) {
+            // Unified: just search todos with matching linkId OR parentId
+            const relatedTasks = appData.todos.filter(t => t.linkId === id || t.parentId === id);
+            
+            const total = relatedTasks.length;
+            if (total === 0) return 0;
+            
+            const completedT = relatedTasks.filter(t => t.completed).length;
+            
+            return Math.round(((completedT) / total) * 100);
+        }
+
+        function renderProjects() {
+            const activeContainer = document.getElementById('projects-list-active');
+            const completedContainer = document.getElementById('projects-list-completed');
+            
+            const activeP = appData.projects.filter(p => calculateProgress('project', p.id) < 100);
+            const completedP = appData.projects.filter(p => calculateProgress('project', p.id) >= 100);
+            
+            const createP_HTML = (p) => {
+                const prog = calculateProgress('project', p.id);
+                return `
+                <div class="bg-white p-5 rounded-2xl border border-slate-50 shadow-sm relative overflow-hidden cursor-pointer" onclick="openDetailModal('project', '${p.id}')">
+                    <div class="flex justify-between items-center mb-2 relative z-10">
+                        <h3 class="font-bold text-slate-700">${p.title}</h3>
+                        <span class="text-xs font-bold text-slate-400">${p.deadline || ''}</span>
+                    </div>
+                         <button onclick="event.stopPropagation(); openEditProjectModal('${p.id}')" class="p-2 bg-slate-50 rounded-full hover:bg-slate-100"><i data-lucide="pencil" class="w-3 h-3 text-slate-400"></i></button>
+                    <div class="w-full bg-slate-100 rounded-full h-2 relative z-10 mb-2">
+                         <div class="bg-sky-400 h-2 rounded-full transition-all duration-1000" style="width: ${prog}%"></div>
+                    </div>
+                    <div class="text-right text-xs text-sky-500 font-bold relative z-10">${prog}%</div>
+                </div>
+            `};
+            
+            activeContainer.innerHTML = activeP.map(createP_HTML).join('');
+            completedContainer.innerHTML = completedP.map(createP_HTML).join('');
+        }
+
+        // --- 統計 ---
+        function renderStats() {
+            // 計算數據
+            const categories = { work: 0, life: 0, health: 0, study: 0, entertainment: 0, other: 0 };
+            let completedCount = 0;
+            
+            const picker = document.getElementById('stats-month-picker');
+            const filterMonth = picker ? picker.value : '';
+
+            appData.todos.forEach(t => {
+                // Modified: Exclude isPartial tasks from stats
+                if(t.completed && !t.isPartial) {
+                    // Check date filtering
+                    if(filterMonth && t.date && !t.date.startsWith(filterMonth)) return; 
+                    
+                    completedCount++;
+                    const cat = t.category || 'other';
+                    if (categories[cat] !== undefined) categories[cat]++;
+                }
+            });
+
+            document.getElementById('stat-completed-tasks').innerText = completedCount;
+
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['工作', '生活', '健康', '學習','娛樂', '其他'],
+                    datasets: [{
+                        data: [categories.work, categories.life, categories.health, categories.study, categories.entertainment, categories.other],
+                        backgroundColor: ['#dcebf5', '#dbe4d3', '#f0e2d5', '#dbd3e4','#f0dad5', '#ebeced'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Noto Sans TC' } } }
+                    }
+                }
+            });
+        }
+
+        // --- 交互邏輯 ---
+
+        function toggleFab() {
+            const menu = document.getElementById('fab-options');
+            const icon = document.getElementById('fab-icon');
+            if (menu.classList.contains('closed')) {
+                menu.classList.remove('closed');
+                menu.classList.add('open');
+                icon.style.transform = 'rotate(45deg)';
+            } else {
+                menu.classList.remove('open');
+                menu.classList.add('closed');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                 if(btn.dataset.target === tab) {
+                     btn.classList.add('active', 'text-slate-800');
+                     btn.classList.remove('text-slate-300');
+                 } else {
+                     btn.classList.remove('active', 'text-slate-800');
+                     btn.classList.add('text-slate-300');
+                 }
+            });
+            renderHeader(); // 切換時也更新標題
+            if(tab === 'stats') renderStats();
+            if(tab === 'calendar') renderCalendar();
+        }
+
+        // Modal Controls
+        function closeModal(e, id) { if(!e || e.target.id === id) document.getElementById(id).classList.add('hidden'); }
+        
+        function openAddTaskModal() { 
+            document.getElementById('task-modal-title').innerText = '新增行程';
+            document.getElementById('btn-save-task').innerText = '確認新增';
+            document.getElementById('edit-task-id').value = ''; 
+            
+            // 重置表單
+            document.getElementById('input-task-title').value = '';
+            // Set date input to current date or current viewed date
+            document.getElementById('input-task-date').value = currentDateStr;
+
+            // document.getElementById('input-task-time').value = ''; // Removed input-task-time as it's not present in this version's HTML
+            document.querySelectorAll('.time-block-btn').forEach(b => {
+                const map = {
+                    allday: 'bg-slate-100 text-slate-600', // Reset
+                    morning: 'bg-sky-50 text-sky-600',
+                    afternoon: 'bg-orange-50 text-orange-600',
+                    evening: 'bg-indigo-50 text-indigo-600',
+                };
+                const id = b.id.replace('btn-block-', '');
+                b.className = `time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent transition-all ${map[id]}`;
+            });
+            
+            // 隱藏刪除按鈕
+            document.getElementById('btn-delete-task').classList.add('hidden');
+            document.getElementById('btn-save-task').classList.remove('flex-[2]');
+            document.getElementById('btn-save-task').classList.add('w-full');
+
+            document.getElementById('modal-add-task').classList.remove('hidden'); 
+            populateOptions(); 
+            toggleTaskSource('new');
+        }
+
+        function openEditTaskModal(id) {
+            const t = appData.todos.find(t => t.id === id); // Unified search
+            if(!t) return;
+            
+            openAddTaskModal();
+            document.getElementById('task-modal-title').innerText = '編輯行程';
+            document.getElementById('btn-save-task').innerText = '更新行程';
+            document.getElementById('edit-task-id').value = id;
+            
+            document.getElementById('input-task-title').value = t.title;
+            document.getElementById('input-task-category').value = t.category;
+            // Set the date input
+            document.getElementById('input-task-date').value = t.date || currentDateStr;
+
+            toggleTimeBlock(t.timeBlock || 'morning');
+            
+
+            // 顯示刪除按鈕
+            document.getElementById('btn-delete-task').classList.remove('hidden');
+            document.getElementById('btn-save-task').classList.remove('w-full');
+            document.getElementById('btn-save-task').classList.add('flex-[2]');
+        }
+
+        function openAddGoalModal() { document.getElementById('modal-add-goal').classList.remove('hidden'); populateOptions(); }
+        function openAddVisionModal() { document.getElementById('modal-vision').classList.remove('hidden'); }
+        function openAddProjectModal() { document.getElementById('modal-add-project').classList.remove('hidden'); }
+        function openHabitModal() { document.getElementById('modal-habits').classList.remove('hidden'); renderManageHabits(); }
+
+        function toggleTaskSource(source) {
+            selectedTaskSource = source;
+            document.getElementById('btn-source-new').className = source === 'new' ? 'px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm text-slate-800 transition-all' : 'px-3 py-1 rounded-md text-xs font-bold text-slate-400 transition-all';
+            document.getElementById('btn-source-list').className = source === 'list' ? 'px-3 py-1 rounded-md text-xs font-bold bg-white shadow-sm text-slate-800 transition-all' : 'px-3 py-1 rounded-md text-xs font-bold text-slate-400 transition-all';
+            
+            if(source === 'new') {
+                document.getElementById('source-new-container').classList.remove('hidden');
+                document.getElementById('source-list-container').classList.add('hidden');
+                document.getElementById('link-container').classList.remove('hidden');
+            } else {
+                document.getElementById('source-new-container').classList.add('hidden');
+                document.getElementById('source-list-container').classList.remove('hidden');
+                document.getElementById('link-container').classList.add('hidden');
+            }
+        }
+        
+        function toggleTimeBlock(block) {
+            // Reset all first
+            const map = {
+                allday: 'bg-slate-100 text-slate-600 hover:border-slate-300', // Added allday style
+                morning: 'bg-sky-50 text-sky-600 hover:border-sky-200',
+                afternoon: 'bg-orange-50 text-orange-600 hover:border-orange-200',
+                evening: 'bg-indigo-50 text-indigo-600 hover:border-indigo-200',
+            };
+
+            document.querySelectorAll('.time-block-btn').forEach(btn => {
+                const id = btn.id.replace('btn-block-', '');
+                btn.className = `time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent transition-all ${map[id]}`;
+            });
+
+            // Set active *****
+            const btn = document.getElementById(`btn-block-${block}`);
+            if(btn) {
+                btn.className = 'time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent bg-slate-800 text-white shadow-md transform scale-105 transition-all';
+            }
+            
+            document.getElementById('selected-time-block').value = block;
+        }
+
+        function populateOptions() {
+            // Link Options (Remove Emojis for cleanliness)
+            const visionGroup = document.getElementById('optgroup-visions');
+            const projectGroup = document.getElementById('optgroup-projects');
+            const taskLink = document.getElementById('input-task-link');
+            const listSelect = document.getElementById('input-task-from-list');
+            
+            let vHtml = appData.visions.map(v => `<option value="vision:${v.id}">${v.title}</option>`).join('');
+            let pHtml = appData.projects.map(p => `<option value="project:${p.id}">${p.title}</option>`).join('');
+            
+            if(visionGroup) visionGroup.innerHTML = vHtml;
+            if(projectGroup) projectGroup.innerHTML = pHtml;
+            if(taskLink) taskLink.innerHTML = `<option value="">無關聯</option>` + vHtml + pHtml;
+
+            // Populate "From List"
+            if(listSelect) {
+                listSelect.innerHTML = `<option value="">-- 選擇一個待辦事項 --</option>` + 
+                    appData.todos.filter(t => !t.date && !t.completed).map(g => `<option value="${g.id}">${g.title} </option>`).join('');
+            }
+        }
+
+        function fillTaskFromList() {
+            // When user picks from list, we don't autofill fields, we just use the ID when saving.
+        }
+
+        function openDetailModal(type, id) {
+            const entity = type === 'vision' ? appData.visions.find(v=>v.id===id) : appData.projects.find(p=>p.id===id);
+            if(!entity) return;
+            
+            document.getElementById('detail-title').innerText = entity.title;
+            const container = document.getElementById('detail-list');
+            
+            // Find related items (Unified search: linkId OR parentId)
+            // Modified: Exclude isPartial tasks from list
+            const relatedTasks = appData.todos.filter(t => (t.linkId === id || t.parentId === id) && !t.isPartial);
+            
+            let html = '';
+            if(relatedTasks.length === 0) html = '<p class="text-slate-400 text-center py-4">暫無任務</p>';
+            
+            relatedTasks.forEach(t => {
+                html += `
+                <div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between items-center">
+                    <span class="${t.completed?'line-through text-slate-400':''}">${t.title}</span>
+                    <div class="flex items-center">
+                        ${t.date 
+                            ? `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">${t.date}</span>` 
+                            : `<span class="text-xs bg-orange-100 text-orange-500 px-2 py-1 rounded mr-2 font-bold">待辦</span>`
+                        }
+                        <button onclick="closeModal(null, 'modal-detail'); ${t.date ? `openEditTaskModal('${t.id}')` : `openEditGoalModal('${t.id}')`}" class="p-1 text-slate-400 hover:text-slate-600">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                </div>`;
+            });
+            
+            container.innerHTML = html;
+            document.getElementById('modal-detail').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        // NEW: Open the completed goals modal list (Unified: All completed todos)
+        function openCompletedGoalsModal() {
+            const container = document.getElementById('completed-list');
+            // Modified: Exclude isPartial tasks from list
+            const completedGoals = appData.todos.filter(g => g.completed && !g.isPartial);
+            
+            let html = '';
+            if(completedGoals.length === 0) {
+                html = '<p class="text-slate-400 text-center py-4">暫無已完成的目標</p>';
+            } else {
+                html = completedGoals.map(g => {
+                    return `
+                    <div class="bg-white rounded-2xl p-4 mb-2 shadow-sm border border-slate-50 flex justify-between items-center group opacity-70 grayscale">
+                        <div class="flex items-center">
+                            <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
+                                <i data-lucide="check-circle-2" class="text-slate-300 w-5 h-5 fill-slate-100"></i>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-slate-700 line-through">${g.title}</div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+            
+            container.innerHTML = html;
+            document.getElementById('completed-detail').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // --- Fragmented Task Functions ---
+        function openFragmentModal() {
+             const list = document.getElementById('fragment-list');
+             // Filter backlog items: no date, not completed
+             const backlog = appData.todos.filter(t => !t.date && !t.completed);
+             
+             if(backlog.length === 0) {
+                 list.innerHTML = `<p class="text-center text-slate-400 text-xs py-4">目前沒有待辦任務</p>`;
+             } else {
+                 list.innerHTML = backlog.map(g => `
+                    <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center hover:bg-slate-100 transition-colors">
+                        <div>
+                            <div class="font-bold text-slate-700 text-sm">${g.title}</div>
+                        </div>
+                        <button onclick="completeFragmentTask('${g.id}')" class="text-xs bg-slate-200 hover:bg-purple-100 hover:text-purple-600 text-slate-500 px-3 py-1.5 rounded-full font-bold transition-all">
+                            完成
+                        </button>
+                    </div>
+                 `).join('');
+             }
+             document.getElementById('modal-fragment-task').classList.remove('hidden');
+             lucide.createIcons();
+        }
+
+        function completeFragmentTask(id) {
+             const t = appData.todos.find(x => x.id === id);
+             if(t) {
+                 t.completed = true;
+                 t.date = currentDateStr; // Set to today so it shows in Today view history
+                 t.timeBlock = 'fragment'; // Set special block
+                 saveData();
+                 openFragmentModal(); // Refresh the list
+             }
+        }
+
+        // --- Data Logic ---
+        
+        function saveData() {
+            localStorage.setItem('flowtimeDataV3', JSON.stringify(appData));
+            renderAll();
+        }
+
+        function saveTask() {
+            const editId = document.getElementById('edit-task-id').value;
+            let title, category, linkId, linkTitle;
+            let timeBlock; // Define here
+            let startTime = ''; // FIXED: Define startTime to avoid reference error
+
+            // Determine Source
+            if (selectedTaskSource === 'list') {
+                const goalId = document.getElementById('input-task-from-list').value;
+                if(!goalId) return alert('請選擇一個任務');
+                
+                // UNIFIED LOGIC: Find in todos (backlog)
+                const g = appData.todos.find(x => x.id === goalId);
+                title = g.title;
+                category = g.category;
+                linkId = g.parentId; // Preserve link
+                // Don't delete goal, we update it in logic below (via editId logic trick or direct update)
+                // Actually, if we selected from list, we are essentially "editing" that backlog item to give it a date.
+                // So let's handle it as an edit if possible, or just update the found object.
+                
+                // Better approach for Unified DB:
+                // We found 'g'. We just need to add date/timeBlock to it.
+                // We can treat it like an edit.
+                document.getElementById('edit-task-id').value = g.id; // Switch to edit mode for that ID
+                // Continue execution...
+            } 
+            
+            // Re-read editId in case we switched mode above
+            const finalEditId = document.getElementById('edit-task-id').value;
+            
+            if (selectedTaskSource !== 'list') {
+                 title = document.getElementById('input-task-title').value;
+                 if(!title) return;
+                 category = document.getElementById('input-task-category').value;
+                 
+                 const linkVal = document.getElementById('input-task-link').value;
+                 if(linkVal) {
+                     const [type, id] = linkVal.split(':');
+                     linkId = id;
+                     const entity = type === 'vision' ? appData.visions.find(v=>v.id===id) : appData.projects.find(p=>p.id===id);
+                     linkTitle = entity ? entity.title : '';
+                 }
+            } else {
+                 // We already pulled data from 'g', but we need to ensure 'timeBlock' and 'date' are read from inputs
+            }
+
+            timeBlock = document.getElementById('selected-time-block').value; 
+            const date = document.getElementById('input-task-date').value;
+
+            if(finalEditId) {
+                // Update existing item (could be a task or a backlog goal)
+                const t = appData.todos.find(x => x.id === finalEditId);
+                if(t) {
+                    if (selectedTaskSource !== 'list') { // Only update title/cat if manual entry
+                        t.title = title; 
+                        t.category = category;
+                        if(linkId) t.linkId = linkId;
+                    }
+                    t.timeBlock = timeBlock;
+                    t.date = date; // Assigning date moves it from Backlog to Today view automatically
+                }
+            } else {
+                // Create New Task
+                const newTask = {
+                    id: 't'+Date.now(),
+                    title, category, timeBlock,
+                    date: date, // Use selected date
+                    completed: false, linkId, linkTitle
+                };
+                appData.todos.push(newTask);
+            }
+            
+            closeModal(null, 'modal-add-task');
+            saveData();
+        }
+
+        function deleteTaskFromModal() {
+            const id = document.getElementById('edit-task-id').value;
+            if(id) {
+                if(confirm('確定要刪除這個行程嗎？')) {
+                    appData.todos = appData.todos.filter(t => t.id !== id);
+                    closeModal(null, 'modal-add-task');
+                    saveData();
+                }
+            }
+        }
+
+        // --- Schedule Goal Logic (Request 2) ---
+        function openScheduleGoalModal(goalId) {
+            const g = appData.todos.find(x => x.id === goalId);
+            if(!g) return;
+            document.getElementById('schedule-goal-id').value = goalId;
+            document.getElementById('schedule-goal-title').innerText = `任務：${g.title}`;
+            document.getElementById('schedule-date').value = currentDateStr;
+            setScheduleBlock('morning'); // Default
+            document.getElementById('modal-schedule-goal').classList.remove('hidden');
+        }
+
+        function setScheduleBlock(block) {
+            document.querySelectorAll('.sch-block-btn').forEach(b => b.className = 'sch-block-btn p-3 rounded-xl bg-slate-100 text-slate-500 text-xs font-bold');
+            document.getElementById(`sch-btn-${block}`).className = 'sch-block-btn p-3 rounded-xl bg-slate-800 text-white text-xs font-bold shadow-md';
+            document.getElementById('schedule-block').value = block;
+        }
+
+        function confirmScheduleGoal() {
+            const goalId = document.getElementById('schedule-goal-id').value;
+            const date = document.getElementById('schedule-date').value;
+            const block = document.getElementById('schedule-block').value;
+            const g = appData.todos.find(x => x.id === goalId);
+            
+            if(g && date && block) {
+                // UNIFIED LOGIC: Update the existing item instead of creating a copy
+                g.date = date;
+                g.timeBlock = block;
+                
+                closeModal(null, 'modal-schedule-goal');
+                saveData();
+                alert('已加入行程！');
+            }
+        }
+
+        // --- NEW: Try to complete task (Triggered from Timeline) ---
+        function tryCompleteTask(id) {
+            const item = appData.todos.find(x => x.id === id);
+            if(item) {
+                // If checking (incomplete -> complete)
+                if(!item.completed) {
+                    document.getElementById('pending-complete-task-id').value = id;
+                    document.getElementById('modal-complete-confirm').classList.remove('hidden');
+                } else {
+                    // If unchecking, just do it
+                    toggleTodo(id);
+                }
+            }
+        }
+
+        // --- NEW: Confirm Task Action (Finish or Continue) ---
+        function confirmTaskAction(action) {
+            const id = document.getElementById('pending-complete-task-id').value;
+            const item = appData.todos.find(x => x.id === id);
+            
+            if(!item) return;
+
+            if(action === 'finish') {
+                // Normal completion
+                item.completed = true;
+                item.isPartial = false; // Just in case
+            } else if(action === 'continue') {
+                // Mark current as done but partial (excluded from stats/lists)
+                item.completed = true;
+                item.isPartial = true; 
+                
+                // Duplicate task back to backlog
+                const newTask = {
+                    ...item,
+                    id: 't' + Date.now(),
+                    completed: false,
+                    date: null, // Back to backlog
+                    timeBlock: null,
+                    isPartial: false 
+                };
+                appData.todos.push(newTask);
+            }
+            
+            closeModal(null, 'modal-complete-confirm');
+            saveData();
+        }
+
+        // Unified Toggle Function
+        function toggleTodo(id) {
+            const item = appData.todos.find(x => x.id === id);
+            if(item) { 
+                item.completed = !item.completed; 
+                // Reset partial flag if unchecked
+                if(!item.completed) item.isPartial = false; 
+                
+                saveData();
+                // If we are inside the modal, refresh it
+                if(!document.getElementById('completed-detail').classList.contains('hidden')) {
+                    openCompletedGoalsModal();
+                }
+            }
+        }
+
+        // Goals (Backlog)
+        function openAddGoalModal() { 
+            resetGoalModal();
+            document.getElementById('goal-modal-title').innerText = '新增待辦目標';
+            document.getElementById('btn-save-goal').innerText = '加入清單';
+            document.getElementById('btn-delete-goal').classList.add('hidden');
+            document.getElementById('btn-save-goal').classList.add('w-full');
+            document.getElementById('modal-add-goal').classList.remove('hidden'); 
+            populateOptions(); 
+        }
+        function openEditGoalModal(id) {
+            const g = appData.todos.find(x => x.id === id); // Unified search
+            if(!g) return;
+            resetGoalModal();
+            document.getElementById('edit-goal-id').value = id;
+            document.getElementById('goal-modal-title').innerText = '編輯任務';
+            document.getElementById('input-goal-title').value = g.title;
+            document.getElementById('input-goal-category').value = g.category;
+            // Handle Parent selection logic if complex, else just populate options
+            populateOptions();
+            if(g.parentId) {
+                // Try to set select value, might need delay if options not built yet
+                setTimeout(() => {
+                    const sel = document.getElementById('input-goal-parent');
+                    // Need to figure out prefix
+                    if(appData.visions.find(v=>v.id===g.parentId)) sel.value = `vision:${g.parentId}`;
+                    else if(appData.projects.find(p=>p.id===g.parentId)) sel.value = `project:${g.parentId}`;
+                }, 0);
+            }
+
+            document.getElementById('btn-save-goal').innerText = '更新';
+            document.getElementById('btn-delete-goal').classList.remove('hidden');
+            document.getElementById('btn-save-goal').classList.remove('w-full');
+            document.getElementById('btn-save-goal').classList.add('flex-[2]');
+            document.getElementById('modal-add-goal').classList.remove('hidden');
+        }
+        function resetGoalModal() {
+            document.getElementById('edit-goal-id').value = '';
+            document.getElementById('input-goal-title').value = '';
+        }
+
+        function saveGoal() {
+            const id = document.getElementById('edit-goal-id').value; // FIXED: Logic for editing existing goals
+            const title = document.getElementById('input-goal-title').value;
+            if(!title) return;
+            const parentVal = document.getElementById('input-goal-parent').value;
+            let parentId = parentVal ? parentVal.split(':')[1] : null;
+
+            if(id) {
+                const g = appData.todos.find(x => x.id === id);
+                if(g) { g.title = title; g.category = document.getElementById('input-goal-category').value; g.parentId = parentId; }
+            } else {
+                appData.todos.push({
+                    id: 'g'+Date.now(),
+                    title,
+                    category: document.getElementById('input-goal-category').value,
+                    parentId,
+                    date: null, // Backlog items have no date
+                    completed: false
+                });
+            }
+            closeModal(null, 'modal-add-goal');
+            saveData();
+            document.getElementById('input-goal-title').value = '';
+        }
+
+        function deleteGoal() {
+            const id = document.getElementById('edit-goal-id').value;
+            if(id && confirm('確定刪除此目標？')) {
+                appData.todos = appData.todos.filter(x => x.id !== id);
+                closeModal(null, 'modal-add-goal');
+                saveData();
+            }
+        }
+
+// Projects
+        function openAddProjectModal() {
+            document.getElementById('edit-project-id').value = '';
+            document.getElementById('project-modal-title').innerText = '新增專案';
+            document.getElementById('input-project-title').value = '';
+            document.getElementById('input-project-deadline').value = '';
+            document.getElementById('btn-delete-project').classList.add('hidden');
+            document.getElementById('btn-save-project').classList.add('w-full');
+            document.getElementById('modal-add-project').classList.remove('hidden');
+        }
+        function openEditProjectModal(id) {
+            const p = appData.projects.find(x => x.id === id);
+            if(!p) return;
+            document.getElementById('edit-project-id').value = id;
+            document.getElementById('project-modal-title').innerText = '編輯專案';
+            document.getElementById('input-project-title').value = p.title;
+            document.getElementById('input-project-deadline').value = p.deadline;
+            document.getElementById('btn-delete-project').classList.remove('hidden');
+            document.getElementById('btn-save-project').classList.remove('w-full');
+            document.getElementById('btn-save-project').classList.add('flex-[2]'); // FIXED TYPO: prohect -> project, remove -> add
+            document.getElementById('modal-add-project').classList.remove('hidden');
+        }
+
+        function saveProject() {
+            const id = document.getElementById('edit-project-id').value; // FIXED: Editing logic
+            const title = document.getElementById('input-project-title').value;
+            if(!title) return;
+            const deadline = document.getElementById('input-project-deadline').value;
+            
+            if(id) {
+                 const p = appData.projects.find(x => x.id === id);
+                 if(p) { p.title = title; p.deadline = deadline; }
+            } else {
+                appData.projects.push({
+                    id: 'p'+Date.now(),
+                    title,
+                    progress: 0,
+                    deadline
+                });
+            }
+            closeModal(null, 'modal-add-project');
+            saveData();
+        }
+
+        function deleteProject() {
+            const id = document.getElementById('edit-project-id').value;
+            if(id && confirm('確定刪除此專案？(關聯任務將保留)')) {
+                appData.projects = appData.projects.filter(x => x.id !== id);
+                closeModal(null, 'modal-add-project');
+                saveData();
+            }
+        }
+
+         // Visions
+        function openAddVisionModal() {
+            document.getElementById('edit-vision-id').value = '';
+            document.getElementById('vision-modal-title').innerText = '新增遠景';
+            document.getElementById('input-vision-title').value = '';
+            document.getElementById('input-vision-deadline').value = '';
+            document.getElementById('btn-delete-vision').classList.add('hidden');
+            document.getElementById('btn-save-vision').innerText = '儲存';
+            document.getElementById('modal-vision').classList.remove('hidden');
+        }
+        function openEditVisionModal(id) {
+            const v = appData.visions.find(x => x.id === id);
+            if(!v) return;
+            document.getElementById('edit-vision-id').value = id;
+            document.getElementById('vision-modal-title').innerText = '編輯遠景';
+            document.getElementById('input-vision-title').value = v.title;
+            document.getElementById('input-vision-deadline').value = v.deadline;
+            document.getElementById('input-vision-img-data').value = v.image || '';
+            document.getElementById('btn-delete-vision').classList.remove('hidden');
+            document.getElementById('btn-save-vision').innerText = '更新';
+            document.getElementById('modal-vision').classList.remove('hidden');
+        }
+        function saveVision() {
+            const id = document.getElementById('edit-vision-id').value; // FIXED: Editing logic
+            const title = document.getElementById('input-vision-title').value;
+            if(!title) return;
+            const deadline = document.getElementById('input-vision-deadline').value;
+            const image = document.getElementById('input-vision-img-data').value;
+            
+            if(id) {
+                const v = appData.visions.find(x => x.id === id);
+                if(v) { v.title = title; v.deadline = deadline; if(image) v.image = image; }
+            } else {
+                appData.visions.push({
+                    id: 'v'+Date.now(),
+                    title,
+                    progress: 0,
+                    deadline,
+                    image
+                });
+            }
+            closeModal(null, 'modal-vision');
+            saveData();
+        }
+        function deleteVision() {
+            const id = document.getElementById('edit-vision-id').value;
+            if(id && confirm('確定刪除此遠景？')) {
+                appData.visions = appData.visions.filter(x => x.id !== id);
+                closeModal(null, 'modal-vision');
+                saveData();
+            }
+        }
+
+        function handleImageUpload(input) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('input-vision-img-data').value = e.target.result;
+                document.getElementById('vision-file-label').innerText = '已選擇圖片';
+            };
+            if(input.files[0]) reader.readAsDataURL(input.files[0]);
+        }
+        
+        // Habits
+        function renderManageHabits() {
+            const list = document.getElementById('habit-manage-list');
+            list.innerHTML = appData.habits.map(h => `
+                <li class="flex justify-between items-center bg-slate-50 p-2 rounded-xl">
+                    <sp an class="flex items-center"><i data-lucide="${h.icon}" class="w-4 h-4 mr-2"></i> ${h.title}</span>
+                    <button onclick="deleteHabit('${h.id}')" class="text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </li>
+            `).join('');
+            lucide.createIcons();
+        }
+        function addHabit() {
+            const title = document.getElementById('new-habit-title').value;
+            if(!title) return;
+            appData.habits.push({ id: 'h'+Date.now(), title, icon: document.getElementById('new-habit-icon').value, completed: false, lastDate: '' });
+            renderManageHabits(); saveData(); document.getElementById('new-habit-title').value = '';
+        }
+        function deleteHabit(id) { appData.habits = appData.habits.filter(h => h.id !== id); renderManageHabits(); saveData(); }
+        function toggleHabit(id) {
+            const h = appData.habits.find(h => h.id === id);
+            if(h) { h.completed = !h.completed; h.lastDate = currentDateStr; saveData(); }
+        }
+        
+        // Task/Goal Actions
+        function toggleTask(id) {
+            const t = appData.tasks.find(t => t.id === id);
+            if(t) { t.completed = !t.completed; saveData(); }
+        }
+        function toggleGoalComplete(id) {
+            const g = appData.goals.find(g => g.id === id);
+            if(g) { g.completed = !g.completed; saveData(); }
+        }
+        // DEPRECATED: This created invisible 'fixed' tasks. Now using Modal.
+        // function quickAddFromGoal(id) { ... }
+        
+        function deleteTaskFromModal() {
+            const id = document.getElementById('edit-task-id').value;
+            if(id) {
+                if(confirm('確定要刪除這個行程嗎？')) {
+                    appData.tasks = appData.tasks.filter(t => t.id !== id);
+                    closeModal(null, 'modal-add-task');
+                    saveData();
+                }
+            }
+        }
+
+        // Calendar Helpers
+        function changeMonth(delta) { calendarViewDate.setMonth(calendarViewDate.getMonth() + delta); renderCalendar(); }
+        function renderCalendar() {
+            const year = calendarViewDate.getFullYear();
+            const month = calendarViewDate.getMonth();
+            document.getElementById('calendar-month-title').innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            let html = '';
+            for(let i=0; i<firstDay; i++) html += `<div></div>`;
+            for(let d=1; d<=daysInMonth; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const isSelected = dateStr === currentDateStr;
+                const hasTask = appData.todos.some(t => t.date === dateStr);
+                html += `
+                    <div onclick="selectDate('${dateStr}')" class="h-10 w-10 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-slate-800 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}">
+                        <span class="font-bold">${d}</span>
+                        ${hasTask && !isSelected ? '<span class="w-1 h-1 bg-sky-400 rounded-full mt-1"></span>' : ''}
+                    </div>
+                `;
+            }
+            document.getElementById('calendar-grid').innerHTML = html;
+            const tasks = appData.todos.filter(t => t.date === currentDateStr);
+            document.getElementById('selected-date-tasks').innerHTML = tasks.length ? tasks.map(t => `
+                <div class="flex justify-between items-center text-sm text-slate-600 border-b border-slate-50 pb-2 ${t.completed ? 'opacity-50 grayscale' : ''}">
+                    <span class="font-bold ${t.completed ? 'line-through' : ''}">${t.title}</span>
+                    <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-400 font-bold">${(t.timeBlock === 'morning' ? '上午' : t.timeBlock === 'afternoon' ? '下午' :  t.timeBlock === 'allday' ? '全日' : '晚上')}</span>
+                </div>
+            `).join('') : '<p class="text-center text-slate-300 py-4">無行程</p>';
+        }
+        function selectDate(d) { currentDateStr = d; renderAll(); }
+        function goToToday() { currentDateStr = new Date().toISOString().split('T')[0]; calendarViewDate = new Date(); renderAll(); }
+
+        function filterGoals(cat) {
+            document.querySelectorAll('.cat-pill').forEach(b => {
+                 b.classList.remove('active', 'bg-slate-800', 'text-white');
+                 b.classList.add('bg-slate-100', 'text-slate-500');
+            });
+            event.target.classList.remove('bg-slate-100', 'text-slate-500');
+            event.target.classList.add('active', 'bg-slate-800', 'text-white');
+            renderGoals();
+        }
+
+        // Init
+        window.addEventListener('DOMContentLoaded', renderAll);
+
+
+    </script>
+</body>
+</html>
