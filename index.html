@@ -29,20 +29,30 @@
         .modal-enter { animation: modalUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
         @keyframes modalUp { from { transform: translateY(100%) scale(0.95); } to { transform: translateY(0) scale(1); } }
 
+        /* 拖曳時的樣式 */
+        .dragging { opacity: 0.5; border: 2px dashed #94a3b8; }
+
         /* 莫蘭迪色系 */
         .bg-morandi-green { background-color: #dbe4d3; color: #5c6b50; }
         .bg-morandi-blue { background-color: #dcebf5; color: #5a7b94; }
         .bg-morandi-orange { background-color: #f7e3d2; color: #a67c52; }
         .bg-morandi-gray { background-color: #f0f2f5; color: #7a869a; }
         
+        /* 補全缺失的顏色 (Request 3) */
+        .bg-morandi-purple { background-color: #dcd3e4; color: #6b5a80; }
+        .bg-morandi-red { background-color: #f2dcdb; color: #945b5b; }
+        
         /* FAB 展開動畫 */
         .fab-menu { transition: all 0.3s ease; transform-origin: bottom right; }
         .fab-menu.open { transform: scale(1); opacity: 1; pointer-events: auto; }
         .fab-menu.closed { transform: scale(0.5); opacity: 0; pointer-events: none; }
 
+        /* App Layout Setup (Request 4) */
+        html, body { height: 100%; overflow: hidden; }
+
         @media (min-width: 640px) {
-            body { background-color: #f1f5f9; display: flex; justify-content: center; min-height: 100vh; }
-            #app-root { width: 100%; max-width: 420px; min-height: 100vh; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); }
+            body { background-color: #e2e8f0; display: flex; justify-content: center; min-height: 100vh; }
+            #app-root { width: 100%; max-width: 420px; height: 100vh; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); }
         }
     </style>
 
@@ -60,10 +70,11 @@
 </head>
 <body class="antialiased text-slate-800">
 
-    <div id="app-root" class="bg-[#fafaf9] relative min-h-screen pb-24 overflow-hidden flex flex-col transition-colors duration-500">
+    <!-- Request 1 & 4: 更改背景為淡藍色 (#eff6ff) 並設定 h-full overflow-hidden 實現 App 佈局 -->
+    <div id="app-root" class="bg-[#eff6ff] relative h-full flex flex-col overflow-hidden transition-colors duration-500">
         
-        <!-- 頂部 Header -->
-        <header class="bg-white/80 backdrop-blur-md sticky top-0 z-30 px-6 pt-12 pb-4 border-b border-slate-100 flex justify-between items-end">
+        <!-- 頂部 Header (Request 4: Removed sticky, now part of flex column) -->
+        <header class="bg-[#eff6ff] backdrop-blur-md z-30 px-6 pt-12 pb-4 border-b border-slate-100 flex justify-between items-end flex-none">
             <div>
                 <h1 id="header-title" class="text-3xl font-bold text-slate-800">今日行程</h1>
                 <p id="header-subtitle" class="text-slate-400 text-xs mt-1 font-medium tracking-wide">載入中...</p>
@@ -73,7 +84,7 @@
             </div>
         </header>
 
-        <!-- 主要內容區域 -->
+        <!-- 主要內容區域 (Request 4: Flex-1 handles taking up remaining space, overflow-y-auto handles scrolling) -->
         <main id="main-content" class="flex-1 overflow-y-auto p-6 no-scrollbar relative z-10">
             
             <!-- 1. 今日視圖 -->
@@ -99,14 +110,13 @@
                             <button onclick="openFragmentModal()" class="text-xs bg-purple-100 text-purple-600 px-3 py-1 rounded-full flex items-center hover:bg-purple-200 font-bold">
                                 <i data-lucide="zap" class="w-3 h-3 mr-1"></i> 碎片化任務
                             </button>
-                            <button onclick="openAddTaskModal()" class="text-xs bg-slate-100 text-slate-500 px-3 py-1 rounded-full flex items-center hover:bg-slate-200 font-bold">
+                            <button onclick="openAddTaskModal()" class="text-xs bg-slate-800 text-white px-3 py-1 rounded-full flex items-center hover:bg-slate-200 font-bold">
                                 <i data-lucide="plus" class="w-3 h-3 mr-1"></i> 新增行程
                             </button>
                         </div>
                     </div>
                     
-                    <!-- UPDATED: 增加 max-height 和 overflow 以限制顯示數量 -->
-                    <div class="relative pl-5 border-l-2 border-slate-200 space-y-6 pb-4 max-h-[65vh] overflow-y-auto no-scrollbar" id="timeline-list">
+                    <div class="relative pl-5 border-l-2 border-slate-200 space-y-6 pb-4" id="timeline-list">
                         <!-- JS 生成時間軸 -->
                     </div>
                 </div>
@@ -114,13 +124,13 @@
 
             <!-- 2. 行事曆視圖 -->
             <div id="view-calendar" class="view-section hidden fade-in space-y-5">
-                <div class="flex justify-between items-center bg-white p-5 rounded-3xl shadow-sm border border-slate-50">
+                <div class="flex justify-between items-center bg-white bg-opacity-50 p-5 rounded-3xl shadow-sm border border-slate-50">
                     <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="chevron-left"></i></button>
                     <h2 id="calendar-month-title" class="text-xl font-bold text-slate-800">Month</h2>
                     <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-full"><i data-lucide="chevron-right"></i></button>
                 </div>
 
-                <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-50">
+                <div class="bg-white bg-opacity-50 rounded-3xl p-5 shadow-sm border border-slate-50">
                     <div class="grid grid-cols-7 text-center text-xs text-slate-400 font-bold mb-4">
                         <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
                     </div>
@@ -129,9 +139,8 @@
                     </div>
                 </div>
 
-                <div class="bg-white rounded-3xl p-5 border border-slate-50 shadow-sm min-h-[150px]">
+                <div class="bg-white bg-opacity-50 rounded-3xl p-5 border border-slate-50 shadow-sm min-h-[150px]">
                     <h3 class="text-lg font-bold mb-3" id="selected-date-summary-title">行程概覽</h3>
-                    <!-- UPDATED: 增加 max-height -->
                     <div id="selected-date-tasks" class="space-y-3 max-h-[40vh] overflow-y-auto no-scrollbar">
                         <!-- JS 生成 -->
                     </div>
@@ -146,9 +155,10 @@
                 <div>
                     <div class="flex justify-between items-center mb-3">
                         <h2 class="text-xl text-slate-800 font-bold">時間分配統計</h2>
-                    <input type="month" id="stats-month-picker" class="bg-white border border-slate-200 rounded-xl px-3 py-1 text-sm outline-none" onchange="renderStats()">
+                        <!-- Fixed: Added onchange handler -->
+                        <input type="month" id="stats-month-picker" class="bg-white bg-opacity-50 border border-slate-200 rounded-xl px-3 py-1 text-sm outline-none" onchange="renderStats()">
                     </div>
-                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-50">
+                    <div class="bg-white bg-opacity-50 p-6 rounded-3xl shadow-sm border border-slate-50">
                         <h3 class="text-sm text-slate-400 font-bold mb-4 text-center">本月專注類別</h3>
                         <div class="h-64 relative">
                             <canvas id="statsChart"></canvas>
@@ -185,7 +195,7 @@
                          <button onclick="openCompletedGoalsModal()" class="text-xs bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-bold hover:bg-slate-300 transition-colors flex items-center">
                         <i data-lucide="archive" class="w-3 h-3 mr-1"></i> 已完成
                         </button>
-                        <button onclick="openAddGoalModal()" class="text-sm bg-slate-800 text-white px-3 py-1 rounded-full font-bold">+ 新增</button>
+                        <button onclick="openAddGoalModal()" class="text-xs bg-slate-800 text-white px-3 py-1 rounded-full font-bold">+ 新增</button>
                     </div>
                     </div>
                     
@@ -198,10 +208,8 @@
                         <button onclick="filterGoals('study')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">學習</button>
                         <button onclick="filterGoals('entertainment')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">娛樂</button>
                         <button onclick="filterGoals('others')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">其他</button>
-                        <!-- 修改: 移除了「已完成」過濾器 Pill -->
                     </div>
 
-                    <!-- UPDATED: 增加 max-height 和 overflow -->
                     <div class="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar" id="goals-list">
                         <!-- JS 生成 -->
                     </div>
@@ -214,7 +222,6 @@
                     <h2 class="text-xl font-bold text-slate-800">進行中專案</h2>
                     <button onclick="openAddProjectModal()" class="text-slate-400 hover:text-slate-800"><i data-lucide="plus-circle"></i></button>
                 </div>
-                <!-- UPDATED: 增加 max-height -->
                 <div id="projects-list-active" class="space-y-4 max-h-[40vh] overflow-y-auto no-scrollbar">
                     <!-- JS 生成 -->
                 </div>
@@ -244,8 +251,8 @@
             </button>
         </div>
 
-        <!-- 底部導航欄 -->
-        <nav class="bg-white/90 backdrop-blur-md border-t border-slate-100 h-20 px-4 flex justify-between items-center pb-2 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.02)]">
+        <!-- 底部導航欄 (Request 4: Flex-none to stay fixed at bottom of flex container) -->
+        <nav class="bg-[#eff6ff] backdrop-blur-md border-t border-slate-100 h-20 px-4 flex justify-between items-center pb-2 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.02)] flex-none">
             <button onclick="switchTab('today')" class="nav-btn active flex-1 flex flex-col items-center space-y-1 text-slate-800" data-target="today">
                 <i data-lucide="list-todo" class="w-6 h-6"></i><span class="text-[10px] font-bold">今日</span>
             </button>
@@ -289,8 +296,23 @@
                             <option value="health">健康</option>
                             <option value="study">學習</option>
                             <option value="entertainment">娛樂</option>
-                            <option value="other">其他</option>
+                            <option value="others">其他</option>
                         </select>
+                    </div>
+
+                    <!-- New: Priority & Deadline for Task Modal (Request 2 & 3) -->
+                    <div class="flex space-x-3 mb-4">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl">
+                            <input type="checkbox" id="input-task-urgent" class="w-4 h-4 text-red-500 rounded focus:ring-red-500">
+                            <span class="text-xs font-bold text-slate-600">緊急</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl">
+                            <input type="checkbox" id="input-task-priority" class="w-4 h-4 text-yellow-500 rounded focus:ring-yellow-500">
+                            <span class="text-xs font-bold text-slate-600">優先</span>
+                        </label>
+                        <div class="flex-1">
+                             <input type="date" id="input-task-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 outline-none" title="截止期限">
+                        </div>
                     </div>
                 </div>
 
@@ -414,16 +436,33 @@
                 <h3 class="text-xl font-bold mb-4" id="goal-modal-title">新增待辦目標</h3>
                 <input type="hidden" id="edit-goal-id"> 
                 <input type="text" id="input-goal-title" placeholder="任務名稱" class="w-full p-4 bg-slate-50 rounded-2xl mb-3 outline-none text-lg font-bold">
+                
                 <div class="flex space-x-2 mb-3">
-                    <select id="input-goal-category" class="p-3 bg-slate-50 rounded-xl outline-none flex-1 text-sm font-bold">
+                    <select id="input-goal-category" class="p-3 bg-white bg-opacity-50 rounded-xl outline-none flex-1 text-sm font-bold">
                         <option value="work">工作</option>
                         <option value="life">生活</option>
                         <option value="health">健康</option>
                         <option value="study">學習</option>
                         <option value="entertainment">娛樂</option>
-                        <option value="other">其他</option>
+                        <option value="others">其他</option>
                     </select>
                 </div>
+
+                <!-- New: Priority & Deadline for Goal Modal (Request 2 & 3) -->
+                <div class="flex space-x-3 mb-4">
+                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl">
+                        <input type="checkbox" id="input-goal-urgent" class="w-4 h-4 text-red-500 rounded focus:ring-red-500">
+                        <span class="text-xs font-bold text-slate-600">緊急</span>
+                    </label>
+                    <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-xl">
+                        <input type="checkbox" id="input-goal-priority" class="w-4 h-4 text-yellow-500 rounded focus:ring-yellow-500">
+                        <span class="text-xs font-bold text-slate-600">優先</span>
+                    </label>
+                    <div class="flex-1">
+                         <input type="date" id="input-goal-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 outline-none" title="截止期限">
+                    </div>
+                </div>
+
                 <div class="mb-4">
                     <label class="text-xs text-slate-400 font-bold ml-1 mb-1 block">遠景/專案</label>
                     <select id="input-goal-parent" class="w-full p-3 bg-slate-50 rounded-xl outline-none text-sm text-slate-600 font-bold">
@@ -456,6 +495,8 @@
                             <option value="sun">太陽</option>
                             <option value="coffee">咖啡</option>
                             <option value="dumbbell">啞鈴</option>
+                            <option value="music">音樂</option>
+                            <option value="smile">笑臉</option>
                         </select>
                         <button onclick="addHabit()" class="bg-slate-800 text-white p-2 rounded-xl"><i data-lucide="plus"></i></button>
                     </div>
@@ -465,7 +506,7 @@
         
         <!-- 6. 新增專案 Modal -->
         <div id="modal-add-project" class="hidden fixed inset-0 bg-slate-900/40 z-50 flex items-end justify-center backdrop-blur-sm" onclick="closeModal(event, 'modal-add-project')">
-            <div class="bg-white w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
+            <div class="bg-white bg-opacity-50 w-full max-w-md rounded-t-[2rem] p-6 modal-enter" onclick="event.stopPropagation()">
                 <h3 class="text-xl font-bold mb-4" id="project-modal-title">新增專案</h3>
                 <input type="hidden" id="edit-project-id"> 
                 <input type="text" id="input-project-title" placeholder="專案名稱" class="w-full p-4 bg-slate-50 rounded-2xl mb-4 outline-none text-lg font-bold">
@@ -531,12 +572,12 @@
         </div>
 
     <!-- JavaScript 邏輯 -->
-    <script>
+<script>
         // --- 1. 初始化 ---
         
         const defaultState = {
             theme: 'none',
-            todos: [], // Merged tasks and goals
+            todos: [], 
             visions: [],
             projects: [],
             habits: [
@@ -545,13 +586,11 @@
             ]
         };
 
-        // Migration from V3 (Split Arrays) to V4 (Unified Array)
         let rawData = localStorage.getItem('flowtimeDataV3');
         let appData;
         
         if (rawData) {
              let oldData = JSON.parse(rawData);
-             // Simple migration: if 'todos' doesn't exist but 'tasks' or 'goals' do, merge them.
              if (!oldData.todos && (oldData.tasks || oldData.goals)) {
                  appData = {
                      theme: oldData.theme || 'none',
@@ -568,32 +607,35 @@
         }
 
         let currentDateStr = new Date().toISOString().split('T')[0];
+        // 修正 1: 用變數儲存當前統計月份，避免重置
+        let currentStatsMonth = currentDateStr.substring(0, 7); 
         let calendarViewDate = new Date();
         let chartInstance = null;
         let selectedTaskSource = 'new'; 
 
         const categoryColors = {
-            work: 'bg-morandi-blue', life: 'bg-morandi-green', health: 'bg-morandi-orange', study: 'bg-morandi-purple', entertainment: 'bg-morandi-red', other: 'bg-morandi-gray'
+            work: 'bg-morandi-blue', life: 'bg-morandi-green', health: 'bg-morandi-orange', study: 'bg-morandi-purple', entertainment: 'bg-morandi-red', others: 'bg-morandi-gray'
         };
 
-        // --- 2. 渲染核心 ---
+        // --- 2. 渲染核心 (修正 renderAll) ---
 
         function renderAll() {
-            renderHeader(); // 更新頭部資訊
+            renderHeader(); 
             renderHabits();
             renderTimeline();
             renderGoals();
             renderProjects();
-            renderCalendar();
+            renderCalendar(); // 修正 3: 確保月曆被渲染
             lucide.createIcons();
             populateOptions();
             
-            const now = new Date();
-            const monthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-            if(document.getElementById('stats-month-picker')) document.getElementById('stats-month-picker').value = monthStr;
+            // 修正 1: 渲染時將 Input 值設為記憶中的月份
+            const statsPicker = document.getElementById('stats-month-picker');
+            if(statsPicker) {
+                statsPicker.value = currentStatsMonth;
+            }
         }
 
-        // 新增的 Header 渲染函式，處理標題和日期
         function renderHeader() {
             const activeTabBtn = document.querySelector('.nav-btn.active');
             const target = activeTabBtn ? activeTabBtn.dataset.target : 'today';
@@ -601,11 +643,9 @@
             const subtitleEl = document.getElementById('header-subtitle');
             const todayBtn = document.getElementById('today-btn');
 
-            // 計算日期字串
             const dateObj = new Date(currentDateStr);
             const dateStr = dateObj.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' });
 
-            // 根據分頁更新標題
             if (target === 'today') {
                 titleEl.innerText = '今日行程';
                 subtitleEl.innerText = dateStr;
@@ -618,7 +658,7 @@
                 }
             } else if (target === 'calendar') {
                 titleEl.innerText = '月曆總覽';
-                subtitleEl.innerText = '查看所有行程';
+                subtitleEl.innerText = calendarViewDate.getFullYear() + '年'; // 更新年份
                 todayBtn.classList.add('hidden');
             } else if (target === 'stats') {
                 titleEl.innerText = '數據統計';
@@ -635,12 +675,12 @@
             }
         }
 
-        function toggleThemeMenu() { document.getElementById('theme-menu').classList.toggle('hidden'); }
-
+        // --- 修正 2: 每日習慣功能 ---
 
         function renderHabits() {
             const list = document.getElementById('habits-list');
             list.innerHTML = appData.habits.map(h => {
+                // 如果最後打卡日期不是今天，重置狀態
                 if(h.lastDate !== currentDateStr) { h.completed = false; }
                 return `
                 <button onclick="toggleHabit('${h.id}')" class="flex flex-col items-center min-w-[60px] group transition-opacity ${h.completed ? 'opacity-50' : 'opacity-100'}">
@@ -654,21 +694,70 @@
             `}).join('');
         }
 
+        function toggleHabit(id) {
+            const h = appData.habits.find(x => x.id === id);
+            if(h) {
+                // 如果已經是今天完成的，點擊則取消
+                if (h.completed && h.lastDate === currentDateStr) {
+                    h.completed = false;
+                    h.lastDate = '';
+                } else {
+                    h.completed = true;
+                    h.lastDate = currentDateStr;
+                }
+                saveData();
+            }
+        }
+
+        function renderManageHabits() {
+            const list = document.getElementById('habit-manage-list');
+            list.innerHTML = appData.habits.map(h => `
+                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-white p-2 rounded-full border border-slate-100"><i data-lucide="${h.icon}" class="w-4 h-4 text-slate-500"></i></div>
+                        <span class="text-sm font-bold text-slate-700">${h.title}</span>
+                    </div>
+                    <button onclick="deleteHabit('${h.id}')" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addHabit() {
+            const title = document.getElementById('new-habit-title').value;
+            const icon = document.getElementById('new-habit-icon').value;
+            if(title) {
+                appData.habits.push({
+                    id: 'h' + Date.now(),
+                    title, icon, completed: false, lastDate: ''
+                });
+                document.getElementById('new-habit-title').value = '';
+                renderManageHabits();
+                saveData(); // 會觸發 renderAll 更新首頁列表
+            }
+        }
+
+        function deleteHabit(id) {
+            if(confirm('確定刪除此習慣？')) {
+                appData.habits = appData.habits.filter(h => h.id !== id);
+                renderManageHabits();
+                saveData();
+            }
+        }
+
+        // --- 渲染時間軸 (保留原樣) ---
         function renderTimeline() {
             const container = document.getElementById('timeline-list');
             let html = '';
             
-            // Unified: Tasks are items with the current date
             const tasksToday = appData.todos.filter(t => t.date === currentDateStr);
             
-            // 分類
-            const allday = tasksToday.filter(t => t.timeBlock === 'allday'); // New All Day
+            const allday = tasksToday.filter(t => t.timeBlock === 'allday');
             const morning = tasksToday.filter(t => t.timeBlock === 'morning');
             const afternoon = tasksToday.filter(t => t.timeBlock === 'afternoon');
             const evening = tasksToday.filter(t => t.timeBlock === 'evening');
             const fragment = tasksToday.filter(t => t.timeBlock === 'fragment'); 
             
-            // Updated Order: All Day -> Morning -> Afternoon -> Evening -> Fragment
             if(allday.length) html += createFuzzyBlock('全日', 'bg-green-50 text-green-600', allday);
             if(morning.length) html += createFuzzyBlock('上午', 'bg-sky-50 text-sky-400', morning);
             if(afternoon.length) html += createFuzzyBlock('下午', 'bg-orange-50 text-orange-400', afternoon);
@@ -681,27 +770,38 @@
         }
 
         function createFuzzyBlock(title, style, tasks) {
+            // 注意：這裡加入了 data-block 屬性，用於拖曳時識別目標區塊
+            let blockCode = 'allday';
+            if(title === '上午') blockCode = 'morning';
+            if(title === '下午') blockCode = 'afternoon';
+            if(title === '晚上') blockCode = 'evening';
+            if(title === '碎片化任務') blockCode = 'fragment';
+
             return `
-                <div class="relative pl-3 border-l-4 border-slate-100 ml-[-7px]">
+                <div class="relative pl-3 border-l-4 border-slate-100 ml-[-7px] drop-zone" data-block="${blockCode}">
                     <h4 class="text-xs font-bold ${style.split(' ')[1]} mb-2 uppercase tracking-wider">${title}</h4>
-                    <div class="${style.split(' ')[0]} p-3 rounded-2xl mb-4 space-y-2">
-                        ${tasks.map(t => createTaskCard(t, true)).join('')}
+                    <div class="${style.split(' ')[0]} p-3 rounded-2xl mb-4 space-y-2 min-h-[50px]">
+                        ${tasks.map(t => createTaskCard(t)).join('')}
                     </div>
                 </div>
             `;
         }
 
-        function createTaskCard(task, isFuzzy = false) {
-            const colorClass = categoryColors[task.category] || categoryColors.other;
-            
-            // Modified: onclick triggers tryCompleteTask
+        function createTaskCard(task) {
+            const colorClass = categoryColors[task.category] || categoryColors.others;
+            let icons = '';
+            if (task.isUrgent) icons += `<span class="text-red-500 mr-1 font-bold text-xs">!</span>`;
+            if (task.isPriority) icons += `<span class="text-yellow-500 mr-1 font-bold text-xs">!</span>`;
+
             return `
-                <div class="relative group">
-                    <div onclick="openEditTaskModal('${task.id}')" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center active:scale-95 transition-transform cursor-pointer ${task.completed ? 'opacity-50 grayscale' : ''}">
+                <div class="relative group" draggable="true" data-id="${task.id}">
+                    <div onclick="openEditTaskModal('${task.id}')" class="bg-white bg-opacity-50 rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center active:scale-95 transition-transform cursor-pointer ${task.completed ? 'opacity-50 grayscale' : ''}">
                         <div class="flex items-center">
-                            <div class="w-3 h-3 rounded-full ${colorClass} mr-3"></div>
+                            <div class="w-3 h-3 rounded-full ${colorClass} mr-3 flex-shrink-0"></div>
                             <div>
-                                <div class="font-bold text-slate-700 text-sm ${task.completed ? 'line-through' : ''}">${task.title}</div>
+                                <div class="font-bold text-slate-700 text-sm ${task.completed ? 'line-through' : ''} flex items-center">
+                                    ${icons} ${task.title}
+                                </div>
                                 <div class="text-[10px] text-slate-400 flex items-center font-bold">
                                     ${task.linkTitle ? `<span class="ml-2 bg-slate-100 px-1 rounded text-slate-500">#${task.linkTitle}</span>` : ''}
                                 </div>
@@ -715,16 +815,109 @@
             `;
         }
 
-        // --- 目標與專案 ---
+        // --- 修正 3: 月曆功能 ---
 
+        function changeMonth(offset) {
+            calendarViewDate.setMonth(calendarViewDate.getMonth() + offset);
+            renderCalendar();
+            renderHeader(); // 更新 Header 年份
+        }
+        
+        function goToToday() {
+            currentDateStr = new Date().toISOString().split('T')[0];
+            calendarViewDate = new Date(); // 重置月曆到本月
+            switchTab('today');
+            renderAll();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            if(!grid) return;
+            
+            const year = calendarViewDate.getFullYear();
+            const month = calendarViewDate.getMonth();
+            
+            // 更新標題
+            document.getElementById('calendar-month-title').innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'long' });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            let html = '';
+            
+            // 空白填充
+            for(let i=0; i<firstDay; i++) {
+                html += `<div></div>`;
+            }
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            for(let d=1; d<=daysInMonth; d++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                // 檢查該日是否有任務
+                const hasTask = appData.todos.some(t => t.date === dateStr && !t.completed);
+                const isCompleted = appData.todos.some(t => t.date === dateStr && t.completed);
+                
+                let dotClass = 'hidden';
+                if (hasTask) dotClass = 'bg-slate-800';
+                else if (isCompleted) dotClass = 'bg-green-400';
+
+                const isSelected = dateStr === currentDateStr;
+                const isToday = dateStr === todayStr;
+
+                let bgClass = 'hover:bg-slate-50 text-slate-600';
+                if(isSelected) bgClass = 'bg-slate-800 text-white shadow-md';
+                else if(isToday) bgClass = 'bg-slate-200 text-slate-800';
+
+                html += `
+                    <div onclick="selectCalendarDate('${dateStr}')" class="h-10 w-10 mx-auto rounded-full flex flex-col items-center justify-center cursor-pointer transition-all ${bgClass} relative">
+                        <span>${d}</span>
+                        <div class="w-1 h-1 rounded-full ${dotClass} absolute bottom-1.5"></div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+            
+            renderSelectedDateSummary();
+        }
+
+        function selectCalendarDate(date) {
+            currentDateStr = date;
+            renderCalendar(); // 重繪選中狀態
+            renderHeader(); // 更新標題日期
+            // 如果在月曆視圖，更新下方摘要
+            renderSelectedDateSummary();
+        }
+
+        function renderSelectedDateSummary() {
+            const container = document.getElementById('selected-date-tasks');
+            const title = document.getElementById('selected-date-summary-title');
+            
+            const dateObj = new Date(currentDateStr);
+            title.innerText = `${dateObj.getMonth()+1}/${dateObj.getDate()} 行程概覽`;
+
+            const tasks = appData.todos.filter(t => t.date === currentDateStr);
+            
+            if(tasks.length === 0) {
+                container.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">本日無行程</div>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(t => `
+                <div class="flex items-center space-x-2 p-2 bg-slate-50 rounded-xl">
+                    <div class="w-2 h-2 rounded-full ${categoryColors[t.category] || 'bg-slate-300'}"></div>
+                    <span class="text-xs font-bold ${t.completed ? 'line-through text-slate-400' : 'text-slate-700'} truncate">${t.title}</span>
+                </div>
+            `).join('');
+        }
+
+
+        // --- 目標與專案 (保留原樣) ---
         function renderGoals() {
-            // Visions
             const vContainer = document.getElementById('vision-container');
             vContainer.innerHTML = appData.visions.map(v => {
                 const progress = calculateProgress('vision', v.id);
-                // 使用 object-cover 確保圖片適配
                 const bg = v.image ? `background-image: url('${v.image}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%)';
-                // FIXED: Changed p.id to v.id
                 return `
                 <div class="relative flex-shrink-0 w-72 h-40 rounded-[2rem] p-5 text-white shadow-lg overflow-hidden snap-center group cursor-pointer" style="${bg}" onclick="openDetailModal('vision', '${v.id}')">
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors"></div>
@@ -746,56 +939,77 @@
                 </div>
             `}).join('');
 
-            // Goal List (Unified: Only show backlog items where date is null AND not completed)
             const list = document.getElementById('goals-list');
             const filter = document.querySelector('.cat-pill.active').getAttribute('onclick').split("'")[1];
             
-            // Only get backlog items (no date) and not completed
             let goalsToShow = appData.todos.filter(g => !g.date && !g.completed); 
             
-            // Apply category filter if not 'all'
             if (filter !== 'all') {
                 goalsToShow = goalsToShow.filter(g => g.category === filter);
             }
 
-            list.innerHTML = goalsToShow.map(g => {
-                const color = categoryColors[g.category];
+            const independent = goalsToShow.filter(g => !g.parentId);
+            const visionTasks = goalsToShow.filter(g => g.parentId && appData.visions.some(v => v.id === g.parentId));
+            const projectTasks = goalsToShow.filter(g => g.parentId && appData.projects.some(p => p.id === g.parentId));
+
+            let html = '';
+            
+            const renderSection = (title, items) => {
+                if (items.length === 0) return '';
                 return `
-                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center group">
-                    <div class="flex items-center">
-                        <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
-                            <div class="w-2 h-8 rounded-full ${color}"></div>
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-slate-700">${g.title}</div>
-                            <div class="text-xs text-slate-400 flex items-center font-bold">
-                                ${g.parentId ? '<span class="mr-2 text-indigo-400">🔗</span>' : ''}
-                            </div>
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">${title}</h4>
+                        ${items.map(g => createGoalItem(g)).join('')}
+                    </div>
+                `;
+            };
+
+            html += renderSection('獨立任務', independent);
+            html += renderSection('遠景任務', visionTasks);
+            html += renderSection('專案任務', projectTasks);
+
+            if (html === '') html = '<div class="text-center text-slate-400 py-10 opacity-50">暫無待辦目標</div>';
+
+            list.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function createGoalItem(g) {
+            const color = categoryColors[g.category] || categoryColors.others;
+            let icons = '';
+            if (g.isUrgent) icons += `<span class="text-red-500 mr-1 font-bold text-xs">!</span>`;
+            if (g.isPriority) icons += `<span class="text-yellow-500 mr-1 font-bold text-xs">!</span>`;
+            const deadlineHtml = g.deadline ? `<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded ml-2">${g.deadline}</span>` : '';
+
+            return `
+            <div class="bg-white bg-opacity-50 rounded-2xl p-4 mb-2 shadow-sm border border-slate-50 flex justify-between items-center group" draggable="true" data-id="${g.id}">
+                <div class="flex items-center">
+                    <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
+                        <div class="w-2 h-8 rounded-full ${color}"></div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-bold text-slate-700 flex items-center">${icons} ${g.title} ${deadlineHtml}</div>
+                        <div class="text-xs text-slate-400 flex items-center font-bold">
+                            ${g.parentId ? '<span class="mr-2 text-indigo-400">🔗</span>' : ''}
                         </div>
                     </div>
-                        <div class="flex space-x-2">
-                        <button onclick="openEditGoalModal('${g.id}')" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="openEditGoalModal('${g.id}')" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-200 transition-colors">
                         <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                        </button>
+                    </button>
                     <button onclick="openScheduleGoalModal('${g.id}')" class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                     </button>
-                    </div>
                 </div>
-            `}).join('');
-            
-            lucide.createIcons(); // Added: Re-render icons after DOM update
+            </div>`;
         }
 
         function calculateProgress(type, id) {
-            // Unified: just search todos with matching linkId OR parentId
             const relatedTasks = appData.todos.filter(t => t.linkId === id || t.parentId === id);
-            
             const total = relatedTasks.length;
             if (total === 0) return 0;
-            
             const completedT = relatedTasks.filter(t => t.completed).length;
-            
             return Math.round(((completedT) / total) * 100);
         }
 
@@ -809,7 +1023,7 @@
             const createP_HTML = (p) => {
                 const prog = calculateProgress('project', p.id);
                 return `
-                <div class="bg-white p-5 rounded-2xl border border-slate-50 shadow-sm relative overflow-hidden cursor-pointer" onclick="openDetailModal('project', '${p.id}')">
+                <div class="bg-white bg-opacity-50 p-5 rounded-2xl border border-slate-50 shadow-sm relative overflow-hidden cursor-pointer" onclick="openDetailModal('project', '${p.id}')">
                     <div class="flex justify-between items-center mb-2 relative z-10">
                         <h3 class="font-bold text-slate-700">${p.title}</h3>
                         <span class="text-xs font-bold text-slate-400">${p.deadline || ''}</span>
@@ -826,23 +1040,27 @@
             completedContainer.innerHTML = completedP.map(createP_HTML).join('');
         }
 
-        // --- 統計 ---
+        // --- 修正 1: 統計 (Update RenderStats) ---
         function renderStats() {
-            // 計算數據
-            const categories = { work: 0, life: 0, health: 0, study: 0, entertainment: 0, other: 0 };
+            const categories = { work: 0, life: 0, health: 0, study: 0, entertainment: 0, others: 0 };
             let completedCount = 0;
             
             const picker = document.getElementById('stats-month-picker');
-            const filterMonth = picker ? picker.value : '';
+            // 更新全局月份狀態
+            if (picker) {
+                currentStatsMonth = picker.value;
+            }
+            const filterMonth = currentStatsMonth;
 
             appData.todos.forEach(t => {
-                // Modified: Exclude isPartial tasks from stats
                 if(t.completed && !t.isPartial) {
-                    // Check date filtering
-                    if(filterMonth && t.date && !t.date.startsWith(filterMonth)) return; 
+                    // 優先使用完成日期，如果沒有則使用計畫日期
+                    const refDate = t.completedDate || t.date;
+                    
+                    if(filterMonth && refDate && !refDate.startsWith(filterMonth)) return; 
                     
                     completedCount++;
-                    const cat = t.category || 'other';
+                    const cat = t.category || 'others';
                     if (categories[cat] !== undefined) categories[cat]++;
                 }
             });
@@ -857,7 +1075,7 @@
                 data: {
                     labels: ['工作', '生活', '健康', '學習','娛樂', '其他'],
                     datasets: [{
-                        data: [categories.work, categories.life, categories.health, categories.study, categories.entertainment, categories.other],
+                        data: [categories.work, categories.life, categories.health, categories.study, categories.entertainment, categories.others],
                         backgroundColor: ['#dcebf5', '#dbe4d3', '#f0e2d5', '#dbd3e4','#f0dad5', '#ebeced'],
                         borderWidth: 0
                     }]
@@ -901,12 +1119,11 @@
                      btn.classList.add('text-slate-300');
                  }
             });
-            renderHeader(); // 切換時也更新標題
+            renderHeader(); 
             if(tab === 'stats') renderStats();
             if(tab === 'calendar') renderCalendar();
         }
 
-        // Modal Controls
         function closeModal(e, id) { if(!e || e.target.id === id) document.getElementById(id).classList.add('hidden'); }
         
         function openAddTaskModal() { 
@@ -914,15 +1131,17 @@
             document.getElementById('btn-save-task').innerText = '確認新增';
             document.getElementById('edit-task-id').value = ''; 
             
-            // 重置表單
             document.getElementById('input-task-title').value = '';
-            // Set date input to current date or current viewed date
             document.getElementById('input-task-date').value = currentDateStr;
+            
+            // Reset new fields
+            document.getElementById('input-task-urgent').checked = false;
+            document.getElementById('input-task-priority').checked = false;
+            document.getElementById('input-task-deadline').value = '';
 
-            // document.getElementById('input-task-time').value = ''; // Removed input-task-time as it's not present in this version's HTML
             document.querySelectorAll('.time-block-btn').forEach(b => {
                 const map = {
-                    allday: 'bg-slate-100 text-slate-600', // Reset
+                    allday: 'bg-slate-100 text-slate-600', 
                     morning: 'bg-sky-50 text-sky-600',
                     afternoon: 'bg-orange-50 text-orange-600',
                     evening: 'bg-indigo-50 text-indigo-600',
@@ -931,7 +1150,6 @@
                 b.className = `time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent transition-all ${map[id]}`;
             });
             
-            // 隱藏刪除按鈕
             document.getElementById('btn-delete-task').classList.add('hidden');
             document.getElementById('btn-save-task').classList.remove('flex-[2]');
             document.getElementById('btn-save-task').classList.add('w-full');
@@ -942,7 +1160,7 @@
         }
 
         function openEditTaskModal(id) {
-            const t = appData.todos.find(t => t.id === id); // Unified search
+            const t = appData.todos.find(t => t.id === id); 
             if(!t) return;
             
             openAddTaskModal();
@@ -952,19 +1170,56 @@
             
             document.getElementById('input-task-title').value = t.title;
             document.getElementById('input-task-category').value = t.category;
-            // Set the date input
             document.getElementById('input-task-date').value = t.date || currentDateStr;
+            
+            document.getElementById('input-task-urgent').checked = t.isUrgent || false;
+            document.getElementById('input-task-priority').checked = t.isPriority || false;
+            document.getElementById('input-task-deadline').value = t.deadline || '';
 
             toggleTimeBlock(t.timeBlock || 'morning');
             
-
-            // 顯示刪除按鈕
             document.getElementById('btn-delete-task').classList.remove('hidden');
             document.getElementById('btn-save-task').classList.remove('w-full');
             document.getElementById('btn-save-task').classList.add('flex-[2]');
         }
 
-        function openAddGoalModal() { document.getElementById('modal-add-goal').classList.remove('hidden'); populateOptions(); }
+        function openAddGoalModal() { 
+            resetGoalModal();
+            document.getElementById('goal-modal-title').innerText = '新增待辦目標';
+            document.getElementById('btn-save-goal').innerText = '加入清單';
+            document.getElementById('btn-delete-goal').classList.add('hidden');
+            document.getElementById('btn-save-goal').classList.add('w-full');
+            document.getElementById('modal-add-goal').classList.remove('hidden'); 
+            populateOptions(); 
+        }
+        function openEditGoalModal(id) {
+            const g = appData.todos.find(x => x.id === id); 
+            if(!g) return;
+            resetGoalModal();
+            document.getElementById('edit-goal-id').value = id;
+            document.getElementById('goal-modal-title').innerText = '編輯任務';
+            document.getElementById('input-goal-title').value = g.title;
+            document.getElementById('input-goal-category').value = g.category;
+            
+            document.getElementById('input-goal-urgent').checked = g.isUrgent || false;
+            document.getElementById('input-goal-priority').checked = g.isPriority || false;
+            document.getElementById('input-goal-deadline').value = g.deadline || '';
+
+            populateOptions();
+            if(g.parentId) {
+                setTimeout(() => {
+                    const sel = document.getElementById('input-goal-parent');
+                    if(appData.visions.find(v=>v.id===g.parentId)) sel.value = `vision:${g.parentId}`;
+                    else if(appData.projects.find(p=>p.id===g.parentId)) sel.value = `project:${g.parentId}`;
+                }, 0);
+            }
+
+            document.getElementById('btn-save-goal').innerText = '更新';
+            document.getElementById('btn-delete-goal').classList.remove('hidden');
+            document.getElementById('btn-save-goal').classList.remove('w-full');
+            document.getElementById('btn-save-goal').classList.add('flex-[2]');
+            document.getElementById('modal-add-goal').classList.remove('hidden');
+        }
         function openAddVisionModal() { document.getElementById('modal-vision').classList.remove('hidden'); }
         function openAddProjectModal() { document.getElementById('modal-add-project').classList.remove('hidden'); }
         function openHabitModal() { document.getElementById('modal-habits').classList.remove('hidden'); renderManageHabits(); }
@@ -986,9 +1241,8 @@
         }
         
         function toggleTimeBlock(block) {
-            // Reset all first
             const map = {
-                allday: 'bg-slate-100 text-slate-600 hover:border-slate-300', // Added allday style
+                allday: 'bg-slate-100 text-slate-600 hover:border-slate-300', 
                 morning: 'bg-sky-50 text-sky-600 hover:border-sky-200',
                 afternoon: 'bg-orange-50 text-orange-600 hover:border-orange-200',
                 evening: 'bg-indigo-50 text-indigo-600 hover:border-indigo-200',
@@ -999,7 +1253,6 @@
                 btn.className = `time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent transition-all ${map[id]}`;
             });
 
-            // Set active *****
             const btn = document.getElementById(`btn-block-${block}`);
             if(btn) {
                 btn.className = 'time-block-btn py-2 rounded-xl text-xs font-bold border border-transparent bg-slate-800 text-white shadow-md transform scale-105 transition-all';
@@ -1009,7 +1262,6 @@
         }
 
         function populateOptions() {
-            // Link Options (Remove Emojis for cleanliness)
             const visionGroup = document.getElementById('optgroup-visions');
             const projectGroup = document.getElementById('optgroup-projects');
             const taskLink = document.getElementById('input-task-link');
@@ -1022,16 +1274,13 @@
             if(projectGroup) projectGroup.innerHTML = pHtml;
             if(taskLink) taskLink.innerHTML = `<option value="">無關聯</option>` + vHtml + pHtml;
 
-            // Populate "From List"
             if(listSelect) {
                 listSelect.innerHTML = `<option value="">-- 選擇一個待辦事項 --</option>` + 
                     appData.todos.filter(t => !t.date && !t.completed).map(g => `<option value="${g.id}">${g.title} </option>`).join('');
             }
         }
 
-        function fillTaskFromList() {
-            // When user picks from list, we don't autofill fields, we just use the ID when saving.
-        }
+        function fillTaskFromList() {}
 
         function openDetailModal(type, id) {
             const entity = type === 'vision' ? appData.visions.find(v=>v.id===id) : appData.projects.find(p=>p.id===id);
@@ -1040,21 +1289,23 @@
             document.getElementById('detail-title').innerText = entity.title;
             const container = document.getElementById('detail-list');
             
-            // Find related items (Unified search: linkId OR parentId)
-            // Modified: Exclude isPartial tasks from list
             const relatedTasks = appData.todos.filter(t => (t.linkId === id || t.parentId === id) && !t.isPartial);
             
             let html = '';
             if(relatedTasks.length === 0) html = '<p class="text-slate-400 text-center py-4">暫無任務</p>';
             
             relatedTasks.forEach(t => {
+                let icons = '';
+                if (t.isUrgent) icons += `<span class="text-red-500 mr-1 font-bold text-xs">!</span>`;
+                if (t.isPriority) icons += `<span class="text-yellow-500 mr-1 font-bold text-xs">!</span>`;
+
                 html += `
-                <div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between items-center">
-                    <span class="${t.completed?'line-through text-slate-400':''}">${t.title}</span>
+                <div class="p-3 bg-slate-50 rounded-xl mb-2 flex justify-between items-center" draggable="true" data-id="${t.id}">
+                    <span class="${t.completed?'line-through text-slate-400':''} flex items-center">${icons} ${t.title}</span>
                     <div class="flex items-center">
                         ${t.date 
                             ? `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">${t.date}</span>` 
-                            : `<span class="text-xs bg-orange-100 text-orange-500 px-2 py-1 rounded mr-2 font-bold">待辦</span>`
+                            : `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">待辦</span>`
                         }
                         <button onclick="closeModal(null, 'modal-detail'); ${t.date ? `openEditTaskModal('${t.id}')` : `openEditGoalModal('${t.id}')`}" class="p-1 text-slate-400 hover:text-slate-600">
                             <i data-lucide="pencil" class="w-3 h-3"></i>
@@ -1068,32 +1319,52 @@
             lucide.createIcons();
         }
         
-        // NEW: Open the completed goals modal list (Unified: All completed todos)
         function openCompletedGoalsModal() {
             const container = document.getElementById('completed-list');
-            // Modified: Exclude isPartial tasks from list
             const completedGoals = appData.todos.filter(g => g.completed && !g.isPartial);
             
-            let html = '';
             if(completedGoals.length === 0) {
-                html = '<p class="text-slate-400 text-center py-4">暫無已完成的目標</p>';
-            } else {
-                html = completedGoals.map(g => {
-                    return `
-                    <div class="bg-white rounded-2xl p-4 mb-2 shadow-sm border border-slate-50 flex justify-between items-center group opacity-70 grayscale">
-                        <div class="flex items-center">
-                            <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
-                                <i data-lucide="check-circle-2" class="text-slate-300 w-5 h-5 fill-slate-100"></i>
-                            </div>
-                            <div>
-                                <div class="text-sm font-bold text-slate-700 line-through">${g.title}</div>
-                            </div>
+                container.innerHTML = '<p class="text-slate-400 text-center py-4">暫無已完成的目標</p>';
+                document.getElementById('completed-detail').classList.remove('hidden');
+                return;
+            }
+
+            const independent = completedGoals.filter(g => !g.parentId && !g.linkId);
+            const visionTasks = completedGoals.filter(g => (g.parentId && appData.visions.some(v => v.id === g.parentId)) || (g.linkId && appData.visions.some(v => v.id === g.linkId)));
+            const projectTasks = completedGoals.filter(g => (g.parentId && appData.projects.some(p => p.id === g.parentId)) || (g.linkId && appData.projects.some(p => p.id === g.linkId)));
+
+            const renderCompletedItem = (g) => {
+                const dateStr = g.completedDate ? g.completedDate : '無日期';
+                return `
+                <div class="bg-white rounded-2xl p-4 mb-2 shadow-sm border border-slate-50 flex justify-between items-center group opacity-70 grayscale">
+                    <div class="flex items-center">
+                        <div onclick="toggleTodo('${g.id}')" class="cursor-pointer mr-3">
+                            <i data-lucide="check-circle-2" class="text-slate-300 w-5 h-5 fill-slate-100"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-slate-700 line-through">${g.title}</div>
                         </div>
                     </div>
-                    `;
-                }).join('');
-            }
-            
+                    <span class="text-[10px] bg-slate-100 text-slate-400 px-2 py-1 rounded">${dateStr}</span>
+                </div>
+                `;
+            };
+
+            const renderSection = (title, items) => {
+                if (items.length === 0) return '';
+                return `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">${title}</h4>
+                        ${items.map(renderCompletedItem).join('')}
+                    </div>
+                `;
+            };
+
+            let html = '';
+            html += renderSection('獨立任務', independent);
+            html += renderSection('遠景任務', visionTasks);
+            html += renderSection('專案任務', projectTasks);
+
             container.innerHTML = html;
             document.getElementById('completed-detail').classList.remove('hidden');
             lucide.createIcons();
@@ -1102,7 +1373,6 @@
         // --- Fragmented Task Functions ---
         function openFragmentModal() {
              const list = document.getElementById('fragment-list');
-             // Filter backlog items: no date, not completed
              const backlog = appData.todos.filter(t => !t.date && !t.completed);
              
              if(backlog.length === 0) {
@@ -1127,10 +1397,11 @@
              const t = appData.todos.find(x => x.id === id);
              if(t) {
                  t.completed = true;
-                 t.date = currentDateStr; // Set to today so it shows in Today view history
-                 t.timeBlock = 'fragment'; // Set special block
+                 t.completedDate = currentDateStr; 
+                 t.date = currentDateStr; 
+                 t.timeBlock = 'fragment'; 
                  saveData();
-                 openFragmentModal(); // Refresh the list
+                 openFragmentModal(); 
              }
         }
 
@@ -1144,31 +1415,19 @@
         function saveTask() {
             const editId = document.getElementById('edit-task-id').value;
             let title, category, linkId, linkTitle;
-            let timeBlock; // Define here
-            let startTime = ''; // FIXED: Define startTime to avoid reference error
+            let timeBlock;
 
-            // Determine Source
             if (selectedTaskSource === 'list') {
                 const goalId = document.getElementById('input-task-from-list').value;
                 if(!goalId) return alert('請選擇一個任務');
                 
-                // UNIFIED LOGIC: Find in todos (backlog)
                 const g = appData.todos.find(x => x.id === goalId);
                 title = g.title;
                 category = g.category;
-                linkId = g.parentId; // Preserve link
-                // Don't delete goal, we update it in logic below (via editId logic trick or direct update)
-                // Actually, if we selected from list, we are essentially "editing" that backlog item to give it a date.
-                // So let's handle it as an edit if possible, or just update the found object.
-                
-                // Better approach for Unified DB:
-                // We found 'g'. We just need to add date/timeBlock to it.
-                // We can treat it like an edit.
-                document.getElementById('edit-task-id').value = g.id; // Switch to edit mode for that ID
-                // Continue execution...
+                linkId = g.parentId; 
+                document.getElementById('edit-task-id').value = g.id; 
             } 
             
-            // Re-read editId in case we switched mode above
             const finalEditId = document.getElementById('edit-task-id').value;
             
             if (selectedTaskSource !== 'list') {
@@ -1183,32 +1442,35 @@
                      const entity = type === 'vision' ? appData.visions.find(v=>v.id===id) : appData.projects.find(p=>p.id===id);
                      linkTitle = entity ? entity.title : '';
                  }
-            } else {
-                 // We already pulled data from 'g', but we need to ensure 'timeBlock' and 'date' are read from inputs
             }
 
             timeBlock = document.getElementById('selected-time-block').value; 
             const date = document.getElementById('input-task-date').value;
+            const isUrgent = document.getElementById('input-task-urgent').checked;
+            const isPriority = document.getElementById('input-task-priority').checked;
+            const deadline = document.getElementById('input-task-deadline').value;
 
             if(finalEditId) {
-                // Update existing item (could be a task or a backlog goal)
                 const t = appData.todos.find(x => x.id === finalEditId);
                 if(t) {
-                    if (selectedTaskSource !== 'list') { // Only update title/cat if manual entry
+                    if (selectedTaskSource !== 'list') {
                         t.title = title; 
                         t.category = category;
                         if(linkId) t.linkId = linkId;
                     }
                     t.timeBlock = timeBlock;
-                    t.date = date; // Assigning date moves it from Backlog to Today view automatically
+                    t.date = date; 
+                    t.isUrgent = isUrgent;
+                    t.isPriority = isPriority;
+                    t.deadline = deadline;
                 }
             } else {
-                // Create New Task
                 const newTask = {
                     id: 't'+Date.now(),
                     title, category, timeBlock,
-                    date: date, // Use selected date
-                    completed: false, linkId, linkTitle
+                    date: date, 
+                    completed: false, linkId, linkTitle,
+                    isUrgent, isPriority, deadline
                 };
                 appData.todos.push(newTask);
             }
@@ -1228,14 +1490,13 @@
             }
         }
 
-        // --- Schedule Goal Logic (Request 2) ---
         function openScheduleGoalModal(goalId) {
             const g = appData.todos.find(x => x.id === goalId);
             if(!g) return;
             document.getElementById('schedule-goal-id').value = goalId;
             document.getElementById('schedule-goal-title').innerText = `任務：${g.title}`;
             document.getElementById('schedule-date').value = currentDateStr;
-            setScheduleBlock('morning'); // Default
+            setScheduleBlock('morning'); 
             document.getElementById('modal-schedule-goal').classList.remove('hidden');
         }
 
@@ -1252,7 +1513,6 @@
             const g = appData.todos.find(x => x.id === goalId);
             
             if(g && date && block) {
-                // UNIFIED LOGIC: Update the existing item instead of creating a copy
                 g.date = date;
                 g.timeBlock = block;
                 
@@ -1262,22 +1522,18 @@
             }
         }
 
-        // --- NEW: Try to complete task (Triggered from Timeline) ---
         function tryCompleteTask(id) {
             const item = appData.todos.find(x => x.id === id);
             if(item) {
-                // If checking (incomplete -> complete)
                 if(!item.completed) {
                     document.getElementById('pending-complete-task-id').value = id;
                     document.getElementById('modal-complete-confirm').classList.remove('hidden');
                 } else {
-                    // If unchecking, just do it
                     toggleTodo(id);
                 }
             }
         }
 
-        // --- NEW: Confirm Task Action (Finish or Continue) ---
         function confirmTaskAction(action) {
             const id = document.getElementById('pending-complete-task-id').value;
             const item = appData.todos.find(x => x.id === id);
@@ -1285,20 +1541,20 @@
             if(!item) return;
 
             if(action === 'finish') {
-                // Normal completion
                 item.completed = true;
-                item.isPartial = false; // Just in case
+                item.completedDate = currentDateStr; 
+                item.isPartial = false; 
             } else if(action === 'continue') {
-                // Mark current as done but partial (excluded from stats/lists)
                 item.completed = true;
+                item.completedDate = currentDateStr; 
                 item.isPartial = true; 
                 
-                // Duplicate task back to backlog
                 const newTask = {
                     ...item,
                     id: 't' + Date.now(),
                     completed: false,
-                    date: null, // Back to backlog
+                    completedDate: null,
+                    date: null, 
                     timeBlock: null,
                     isPartial: false 
                 };
@@ -1309,81 +1565,60 @@
             saveData();
         }
 
-        // Unified Toggle Function
         function toggleTodo(id) {
             const item = appData.todos.find(x => x.id === id);
             if(item) { 
                 item.completed = !item.completed; 
-                // Reset partial flag if unchecked
+                if(item.completed) item.completedDate = currentDateStr; 
+                else item.completedDate = null;
+
                 if(!item.completed) item.isPartial = false; 
                 
                 saveData();
-                // If we are inside the modal, refresh it
                 if(!document.getElementById('completed-detail').classList.contains('hidden')) {
                     openCompletedGoalsModal();
                 }
             }
         }
 
-        // Goals (Backlog)
-        function openAddGoalModal() { 
-            resetGoalModal();
-            document.getElementById('goal-modal-title').innerText = '新增待辦目標';
-            document.getElementById('btn-save-goal').innerText = '加入清單';
-            document.getElementById('btn-delete-goal').classList.add('hidden');
-            document.getElementById('btn-save-goal').classList.add('w-full');
-            document.getElementById('modal-add-goal').classList.remove('hidden'); 
-            populateOptions(); 
-        }
-        function openEditGoalModal(id) {
-            const g = appData.todos.find(x => x.id === id); // Unified search
-            if(!g) return;
-            resetGoalModal();
-            document.getElementById('edit-goal-id').value = id;
-            document.getElementById('goal-modal-title').innerText = '編輯任務';
-            document.getElementById('input-goal-title').value = g.title;
-            document.getElementById('input-goal-category').value = g.category;
-            // Handle Parent selection logic if complex, else just populate options
-            populateOptions();
-            if(g.parentId) {
-                // Try to set select value, might need delay if options not built yet
-                setTimeout(() => {
-                    const sel = document.getElementById('input-goal-parent');
-                    // Need to figure out prefix
-                    if(appData.visions.find(v=>v.id===g.parentId)) sel.value = `vision:${g.parentId}`;
-                    else if(appData.projects.find(p=>p.id===g.parentId)) sel.value = `project:${g.parentId}`;
-                }, 0);
-            }
-
-            document.getElementById('btn-save-goal').innerText = '更新';
-            document.getElementById('btn-delete-goal').classList.remove('hidden');
-            document.getElementById('btn-save-goal').classList.remove('w-full');
-            document.getElementById('btn-save-goal').classList.add('flex-[2]');
-            document.getElementById('modal-add-goal').classList.remove('hidden');
-        }
         function resetGoalModal() {
             document.getElementById('edit-goal-id').value = '';
             document.getElementById('input-goal-title').value = '';
+            document.getElementById('input-goal-urgent').checked = false;
+            document.getElementById('input-goal-priority').checked = false;
+            document.getElementById('input-goal-deadline').value = '';
         }
 
         function saveGoal() {
-            const id = document.getElementById('edit-goal-id').value; // FIXED: Logic for editing existing goals
+            const id = document.getElementById('edit-goal-id').value; 
             const title = document.getElementById('input-goal-title').value;
             if(!title) return;
             const parentVal = document.getElementById('input-goal-parent').value;
             let parentId = parentVal ? parentVal.split(':')[1] : null;
+            
+            const isUrgent = document.getElementById('input-goal-urgent').checked;
+            const isPriority = document.getElementById('input-goal-priority').checked;
+            const deadline = document.getElementById('input-goal-deadline').value;
 
             if(id) {
                 const g = appData.todos.find(x => x.id === id);
-                if(g) { g.title = title; g.category = document.getElementById('input-goal-category').value; g.parentId = parentId; }
+                if(g) { 
+                    g.title = title; 
+                    g.category = document.getElementById('input-goal-category').value; 
+                    g.parentId = parentId;
+                    g.isUrgent = isUrgent;
+                    g.isPriority = isPriority;
+                    g.deadline = deadline;
+                }
             } else {
                 appData.todos.push({
                     id: 'g'+Date.now(),
                     title,
                     category: document.getElementById('input-goal-category').value,
                     parentId,
-                    date: null, // Backlog items have no date
-                    completed: false
+                    date: null, 
+                    completed: false,
+                    isUrgent, isPriority, deadline
                 });
             }
             closeModal(null, 'modal-add-goal');
@@ -1400,7 +1635,6 @@
             }
         }
 
-// Projects
         function openAddProjectModal() {
             document.getElementById('edit-project-id').value = '';
             document.getElementById('project-modal-title').innerText = '新增專案';
@@ -1419,12 +1653,12 @@
             document.getElementById('input-project-deadline').value = p.deadline;
             document.getElementById('btn-delete-project').classList.remove('hidden');
             document.getElementById('btn-save-project').classList.remove('w-full');
-            document.getElementById('btn-save-project').classList.add('flex-[2]'); // FIXED TYPO: prohect -> project, remove -> add
+            document.getElementById('btn-save-project').classList.add('flex-[2]'); 
             document.getElementById('modal-add-project').classList.remove('hidden');
         }
 
         function saveProject() {
-            const id = document.getElementById('edit-project-id').value; // FIXED: Editing logic
+            const id = document.getElementById('edit-project-id').value; 
             const title = document.getElementById('input-project-title').value;
             if(!title) return;
             const deadline = document.getElementById('input-project-deadline').value;
@@ -1453,7 +1687,6 @@
             }
         }
 
-         // Visions
         function openAddVisionModal() {
             document.getElementById('edit-vision-id').value = '';
             document.getElementById('vision-modal-title').innerText = '新增遠景';
@@ -1476,7 +1709,7 @@
             document.getElementById('modal-vision').classList.remove('hidden');
         }
         function saveVision() {
-            const id = document.getElementById('edit-vision-id').value; // FIXED: Editing logic
+            const id = document.getElementById('edit-vision-id').value; 
             const title = document.getElementById('input-vision-title').value;
             if(!title) return;
             const deadline = document.getElementById('input-vision-deadline').value;
@@ -1515,99 +1748,120 @@
             if(input.files[0]) reader.readAsDataURL(input.files[0]);
         }
         
-        // Habits
-        function renderManageHabits() {
-            const list = document.getElementById('habit-manage-list');
-            list.innerHTML = appData.habits.map(h => `
-                <li class="flex justify-between items-center bg-slate-50 p-2 rounded-xl">
-                    <sp an class="flex items-center"><i data-lucide="${h.icon}" class="w-4 h-4 mr-2"></i> ${h.title}</span>
-                    <button onclick="deleteHabit('${h.id}')" class="text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </li>
-            `).join('');
-            lucide.createIcons();
+        // --- 修正 4: 拖曳功能優化 (修正 handleDrop) ---
+
+        let dragSrcEl = null;
+
+        function setupDragAndDrop(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // 移除舊的 Listeners 以免重複綁定 (簡單做法: 重新替換節點或確保只綁定一次)
+            // 這裡我們假設 init 只執行一次， renderAll 不再呼叫 setupDragAndDrop
+            
+            container.addEventListener('dragstart', handleDragStart, false);
+            container.addEventListener('dragenter', handleDragEnter, false);
+            container.addEventListener('dragover', handleDragOver, false);
+            container.addEventListener('dragleave', handleDragLeave, false);
+            container.addEventListener('drop', handleDrop, false);
+            container.addEventListener('dragend', handleDragEnd, false);
         }
-        function addHabit() {
-            const title = document.getElementById('new-habit-title').value;
-            if(!title) return;
-            appData.habits.push({ id: 'h'+Date.now(), title, icon: document.getElementById('new-habit-icon').value, completed: false, lastDate: '' });
-            renderManageHabits(); saveData(); document.getElementById('new-habit-title').value = '';
+
+        function handleDragStart(e) {
+            dragSrcEl = e.target.closest('[draggable="true"]');
+            if(!dragSrcEl) return;
+            
+            dragSrcEl.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', dragSrcEl.getAttribute('data-id'));
         }
-        function deleteHabit(id) { appData.habits = appData.habits.filter(h => h.id !== id); renderManageHabits(); saveData(); }
-        function toggleHabit(id) {
-            const h = appData.habits.find(h => h.id === id);
-            if(h) { h.completed = !h.completed; h.lastDate = currentDateStr; saveData(); }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) e.preventDefault(); 
+            e.dataTransfer.dropEffect = 'move';
+            return false;
         }
-        
-        // Task/Goal Actions
-        function toggleTask(id) {
-            const t = appData.tasks.find(t => t.id === id);
-            if(t) { t.completed = !t.completed; saveData(); }
+
+        function handleDragEnter(e) {
+            const target = e.target.closest('[draggable="true"]');
+            if (target && target !== dragSrcEl) {
+                target.classList.add('border-2', 'border-indigo-400');
+            }
         }
-        function toggleGoalComplete(id) {
-            const g = appData.goals.find(g => g.id === id);
-            if(g) { g.completed = !g.completed; saveData(); }
+
+        function handleDragLeave(e) {
+            const target = e.target.closest('[draggable="true"]');
+            if (target) {
+                target.classList.remove('border-2', 'border-indigo-400');
+            }
         }
-        // DEPRECATED: This created invisible 'fixed' tasks. Now using Modal.
-        // function quickAddFromGoal(id) { ... }
-        
-        function deleteTaskFromModal() {
-            const id = document.getElementById('edit-task-id').value;
-            if(id) {
-                if(confirm('確定要刪除這個行程嗎？')) {
-                    appData.tasks = appData.tasks.filter(t => t.id !== id);
-                    closeModal(null, 'modal-add-task');
-                    saveData();
+
+        function handleDrop(e) {
+            if (e.stopPropagation) e.stopPropagation(); 
+            
+            const srcId = e.dataTransfer.getData('text/plain');
+            const targetCard = e.target.closest('[draggable="true"]');
+            const targetZone = e.target.closest('.drop-zone'); // 用於偵測是否拖曳到不同時段
+            
+            const targetId = targetCard ? targetCard.getAttribute('data-id') : null;
+
+            // 1. 陣列重排序 (如果是拖曳到另一個卡片上)
+            if (srcId && targetId && srcId !== targetId) {
+                const srcIndex = appData.todos.findIndex(t => t.id === srcId);
+                const targetIndex = appData.todos.findIndex(t => t.id === targetId);
+                
+                if (srcIndex > -1 && targetIndex > -1) {
+                    const [removed] = appData.todos.splice(srcIndex, 1);
+                    appData.todos.splice(targetIndex, 0, removed);
+                    
+                    // 修正：如果拖曳到不同時段的卡片上，自動更新時段
+                    const targetItem = appData.todos[targetIndex]; // 這時已插入新位置
+                    const neighborItem = appData.todos[targetIndex + 1] || appData.todos[targetIndex - 1];
+                    
+                    // 同步 TimeBlock 屬性 (如果是在時間軸內拖曳)
+                    if(targetItem.date && removed.date) {
+                         // 嘗試讀取目標卡片所在區塊的屬性
+                         if(neighborItem && neighborItem.timeBlock) {
+                             removed.timeBlock = neighborItem.timeBlock;
+                         }
+                    }
+                }
+            } else if (srcId && targetZone && !targetId) {
+                // 2. 拖曳到空白區塊 (例如上午拖到下午的空白處)
+                const newBlock = targetZone.getAttribute('data-block');
+                const item = appData.todos.find(t => t.id === srcId);
+                if(item && newBlock && item.timeBlock !== newBlock) {
+                    item.timeBlock = newBlock;
                 }
             }
-        }
 
-        // Calendar Helpers
-        function changeMonth(delta) { calendarViewDate.setMonth(calendarViewDate.getMonth() + delta); renderCalendar(); }
-        function renderCalendar() {
-            const year = calendarViewDate.getFullYear();
-            const month = calendarViewDate.getMonth();
-            document.getElementById('calendar-month-title').innerText = calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            let html = '';
-            for(let i=0; i<firstDay; i++) html += `<div></div>`;
-            for(let d=1; d<=daysInMonth; d++) {
-                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const isSelected = dateStr === currentDateStr;
-                const hasTask = appData.todos.some(t => t.date === dateStr);
-                html += `
-                    <div onclick="selectDate('${dateStr}')" class="h-10 w-10 flex flex-col items-center justify-center rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-slate-800 text-white shadow-lg' : 'hover:bg-slate-50 text-slate-600'}">
-                        <span class="font-bold">${d}</span>
-                        ${hasTask && !isSelected ? '<span class="w-1 h-1 bg-sky-400 rounded-full mt-1"></span>' : ''}
-                    </div>
-                `;
-            }
-            document.getElementById('calendar-grid').innerHTML = html;
-            const tasks = appData.todos.filter(t => t.date === currentDateStr);
-            document.getElementById('selected-date-tasks').innerHTML = tasks.length ? tasks.map(t => `
-                <div class="flex justify-between items-center text-sm text-slate-600 border-b border-slate-50 pb-2 ${t.completed ? 'opacity-50 grayscale' : ''}">
-                    <span class="font-bold ${t.completed ? 'line-through' : ''}">${t.title}</span>
-                    <span class="text-xs bg-slate-100 px-2 py-1 rounded text-slate-400 font-bold">${(t.timeBlock === 'morning' ? '上午' : t.timeBlock === 'afternoon' ? '下午' :  t.timeBlock === 'allday' ? '全日' : '晚上')}</span>
-                </div>
-            `).join('') : '<p class="text-center text-slate-300 py-4">無行程</p>';
-        }
-        function selectDate(d) { currentDateStr = d; renderAll(); }
-        function goToToday() { currentDateStr = new Date().toISOString().split('T')[0]; calendarViewDate = new Date(); renderAll(); }
-
-        function filterGoals(cat) {
-            document.querySelectorAll('.cat-pill').forEach(b => {
-                 b.classList.remove('active', 'bg-slate-800', 'text-white');
-                 b.classList.add('bg-slate-100', 'text-slate-500');
+            // 清理樣式
+            const items = document.querySelectorAll('[draggable="true"]');
+            items.forEach(item => {
+                item.classList.remove('dragging');
+                item.classList.remove('border-2', 'border-indigo-400');
             });
-            event.target.classList.remove('bg-slate-100', 'text-slate-500');
-            event.target.classList.add('active', 'bg-slate-800', 'text-white');
-            renderGoals();
+            
+            saveData();
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            const items = document.querySelectorAll('[draggable="true"]');
+            items.forEach(function (item) {
+                item.classList.remove('dragging');
+                item.classList.remove('border-2', 'border-indigo-400');
+            });
         }
 
         // Init
-        window.addEventListener('DOMContentLoaded', renderAll);
-
+        window.addEventListener('DOMContentLoaded', () => {
+            renderAll();
+            // 修正 4: 拖曳監聽器只需綁定一次，不要放在 renderAll 裡
+            setupDragAndDrop('timeline-list');
+            setupDragAndDrop('goals-list');
+            setupDragAndDrop('detail-list');
+        });
 
     </script>
 </body>
