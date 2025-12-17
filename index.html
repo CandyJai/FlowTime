@@ -74,9 +74,9 @@
     <div id="app-root" class="bg-[#eff6ff] relative h-full flex flex-col overflow-hidden transition-colors duration-500">
         
         <!-- 頂部 Header (Request 4: Removed sticky, now part of flex column) -->
-        <header class="bg-[#eff6ff] backdrop-blur-md z-30 px-6 pt-12 pb-4 border-b border-slate-100 flex justify-between items-end flex-none">
+        <header class="bg-[#eff6ff] backdrop-blur-md z-30 px-6 pt-6 pb-4 border-b border-slate-100 flex justify-between items-end flex-none">
             <div>
-                <h1 id="header-title" class="text-3xl font-bold text-slate-800">今日行程</h1>
+                <h1 id="header-title" class="text-2xl font-bold text-slate-800">今日行程</h1>
                 <p id="header-subtitle" class="text-slate-400 text-xs mt-1 font-medium tracking-wide">載入中...</p>
             </div>
             <div class="flex items-center space-x-2">
@@ -202,12 +202,12 @@
                     <!-- 分類過濾器 -->
                     <div class="flex space-x-2 overflow-x-auto pb-2 no-scrollbar mb-2" id="category-filter">
                         <button onclick="filterGoals('all')" class="cat-pill active px-4 py-1 rounded-full text-xs font-bold bg-slate-800 text-white transition-colors whitespace-nowrap">全部</button>
-                        <button onclick="filterGoals('work')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">工作</button>
-                        <button onclick="filterGoals('life')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">生活</button>
-                        <button onclick="filterGoals('health')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">健康</button>
-                        <button onclick="filterGoals('study')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">學習</button>
-                        <button onclick="filterGoals('entertainment')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">娛樂</button>
-                        <button onclick="filterGoals('others')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 transition-colors whitespace-nowrap">其他</button>
+                        <button onclick="filterGoals('work')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">工作</button>
+                        <button onclick="filterGoals('life')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">生活</button>
+                        <button onclick="filterGoals('health')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">健康</button>
+                        <button onclick="filterGoals('study')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">學習</button>
+                        <button onclick="filterGoals('entertainment')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">娛樂</button>
+                        <button onclick="filterGoals('others')" class="cat-pill px-4 py-1 rounded-full text-xs font-bold bg-slate-10 text-slate-500 transition-colors whitespace-nowrap">其他</button>
                     </div>
 
                     <div class="space-y-3 max-h-[60vh] overflow-y-auto no-scrollbar" id="goals-list">
@@ -252,7 +252,7 @@
         </div>
 
         <!-- 底部導航欄 (Request 4: Flex-none to stay fixed at bottom of flex container) -->
-        <nav class="bg-[#eff6ff] backdrop-blur-md border-t border-slate-100 h-20 px-4 flex justify-between items-center pb-2 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.02)] flex-none">
+        <nav class="bg-[#eff6ff] backdrop-blur-md border-t border-slate-100 h-16 px-4 flex justify-between items-center items-center z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] flex-none">
             <button onclick="switchTab('today')" class="nav-btn active flex-1 flex flex-col items-center space-y-1 text-slate-800" data-target="today">
                 <i data-lucide="list-todo" class="w-6 h-6"></i><span class="text-[10px] font-bold">今日</span>
             </button>
@@ -488,7 +488,7 @@
                     <h4 class="text-sm font-bold text-slate-500 mb-2">新增習慣</h4>
                     <div class="flex space-x-2">
                         <input type="text" id="new-habit-title" placeholder="名稱" class="flex-1 p-2 bg-slate-50 rounded-xl text-sm outline-none font-bold">
-                        <select id="new-habit-icon" class="p-2 bg-slate-50 rounded-xl outline-none text-sm w-24">
+                        <select id="new-habit-icon" class="p-2 bg-slate-50 bg-opacity-50 rounded-xl outline-none text-sm w-24">
                             <option value="droplets">水滴</option>
                             <option value="book-open">書本</option>
                             <option value="moon">月亮</option>
@@ -826,7 +826,6 @@
         function goToToday() {
             currentDateStr = new Date().toISOString().split('T')[0];
             calendarViewDate = new Date(); // 重置月曆到本月
-            switchTab('today');
             renderAll();
         }
 
@@ -917,7 +916,7 @@
             const vContainer = document.getElementById('vision-container');
             vContainer.innerHTML = appData.visions.map(v => {
                 const progress = calculateProgress('vision', v.id);
-                const bg = v.image ? `background-image: url('${v.image}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%)';
+                const bg = v.image ? `background-image: url('${v.image}'); background-size: cover; background-position: center;` :'background: linear-gradient(135deg, #4fcfe8 0%, #2390cf 100%);';
                 return `
                 <div class="relative flex-shrink-0 w-72 h-40 rounded-[2rem] p-5 text-white shadow-lg overflow-hidden snap-center group cursor-pointer" style="${bg}" onclick="openDetailModal('vision', '${v.id}')">
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors"></div>
@@ -1122,6 +1121,10 @@
             renderHeader(); 
             if(tab === 'stats') renderStats();
             if(tab === 'calendar') renderCalendar();
+            
+            // --- 修正開始: 加入這行以確保切換回今日視圖時，任務列表會根據選擇的日期更新 ---
+            if(tab === 'today') renderTimeline();
+            // --- 修正結束 ---
         }
 
         function closeModal(e, id) { if(!e || e.target.id === id) document.getElementById(id).classList.add('hidden'); }
@@ -1852,6 +1855,16 @@
                 item.classList.remove('dragging');
                 item.classList.remove('border-2', 'border-indigo-400');
             });
+        }
+
+        function filterGoals(cat) {
+            document.querySelectorAll('.cat-pill').forEach(b => {
+                 b.classList.remove('active', 'bg-slate-800', 'text-white');
+                 b.classList.add('bg-slate-100', 'text-slate-500');
+            });
+            event.target.classList.remove('bg-slate-100', 'text-slate-500');
+            event.target.classList.add('active', 'bg-slate-800', 'text-white');
+            renderGoals();
         }
 
         // Init
