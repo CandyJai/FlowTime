@@ -236,21 +236,6 @@
 
         </main>
 
-        <!-- 懸浮按鈕 (FAB) -->
-        <div class="absolute bottom-24 right-6 z-30 flex flex-col items-end space-y-3">
-            <div id="fab-options" class="fab-menu closed flex flex-col items-end space-y-3">
-                <button onclick="openAddGoalModal(); toggleFab()" class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-bold text-slate-700">
-                    <span>新增目標 (Goal)</span> <i data-lucide="target" class="w-4 h-4"></i>
-                </button>
-                <button onclick="openAddTaskModal(); toggleFab()" class="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-bold text-slate-700">
-                    <span>新增行程 (Task)</span> <i data-lucide="calendar-plus" class="w-4 h-4"></i>
-                </button>
-            </div>
-            <button onclick="toggleFab()" class="w-14 h-14 bg-slate-800 rounded-full text-white shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
-                <i data-lucide="plus" class="w-7 h-7 transition-transform" id="fab-icon"></i>
-            </button>
-        </div>
-
         <!-- 底部導航欄 (Request 4: Flex-none to stay fixed at bottom of flex container) -->
         <nav class="bg-[#eff6ff] backdrop-blur-md border-t border-slate-100 h-16 px-4 flex justify-between items-center items-center z-30 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] flex-none">
             <button onclick="switchTab('today')" class="nav-btn active flex-1 flex flex-col items-center space-y-1 text-slate-800" data-target="today">
@@ -311,7 +296,8 @@
                             <span class="text-xs font-bold text-slate-600">優先</span>
                         </label>
                         <div class="flex-1">
-                             <input type="date" id="input-task-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 outline-none" title="截止期限">
+                            <label class="text-xs text-slate-400 font-bold mb-1 block ml-1">截止期限</label>
+                            <input type="date" id="input-task-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 outline-none" title="截止期限">
                         </div>
                     </div>
                 </div>
@@ -459,6 +445,7 @@
                         <span class="text-xs font-bold text-slate-600">優先</span>
                     </label>
                     <div class="flex-1">
+                        <label class="text-xs text-slate-400 font-bold mb-1 block ml-1">截止期限</label>
                          <input type="date" id="input-goal-deadline" class="w-full p-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 outline-none" title="截止期限">
                     </div>
                 </div>
@@ -573,7 +560,7 @@
 
     <!-- JavaScript 邏輯 -->
 <script>
-        // --- 1. 初始化 ---
+// --- 1. 初始化 ---
         
         const defaultState = {
             theme: 'none',
@@ -606,12 +593,50 @@
             appData = defaultState;
         }
 
-        let currentDateStr = new Date().toISOString().split('T')[0];
+        // --- 修正函式：取得本地系統時間 ---
+        function getLocalTodayDate() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 當前選中的日期 (使用者正在看的日期)
+        let currentDateStr = getLocalTodayDate();
+        
+        // 紀錄「上一次檢查時的系統日期」，用來偵測跨日
+        let lastSystemDate = getLocalTodayDate(); 
+
+        // --- 修正後的自動更新邏輯 ---
+        setInterval(() => {
+            const realToday = getLocalTodayDate();
+            
+            // 只有當「真實世界」的日期發生變化時 (例如剛過午夜 12 點，從 18 變成 19)
+            if (realToday !== lastSystemDate) {
+                
+                // 只有當使用者原本就是在看「舊的今天」時，才自動幫他跳轉到「新的今天」
+                // 如果使用者正在查看 15號(currentDateStr)，而系統剛從 18號變成 19號
+                // 因為 15 !== 18，程式知道使用者在查閱歷史，所以不會強制跳轉
+                if (currentDateStr === lastSystemDate) {
+                    currentDateStr = realToday;
+                    
+                    // 如果使用者停留在今日視圖，刷新畫面
+                    const activeTab = document.querySelector('.nav-btn.active')?.dataset.target;
+                    if (activeTab === 'today') renderAll();
+                }
+                
+                // 更新系統日期紀錄
+                lastSystemDate = realToday;
+            }
+        }, 1000);
+        // ---------------------------
+
         // 修正 1: 用變數儲存當前統計月份，避免重置
         let currentStatsMonth = currentDateStr.substring(0, 7); 
         let calendarViewDate = new Date();
         let chartInstance = null;
-        let selectedTaskSource = 'new'; 
+        let selectedTaskSource = 'new';
 
         const categoryColors = {
             work: 'bg-morandi-blue', life: 'bg-morandi-green', health: 'bg-morandi-orange', study: 'bg-morandi-purple', entertainment: 'bg-morandi-red', others: 'bg-morandi-gray'
@@ -650,7 +675,7 @@
                 titleEl.innerText = '今日行程';
                 subtitleEl.innerText = dateStr;
                 
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = getLocalTodayDate(); 
                 if (currentDateStr !== todayStr) {
                     todayBtn.classList.remove('hidden');
                 } else {
@@ -824,7 +849,7 @@
         }
         
         function goToToday() {
-            currentDateStr = new Date().toISOString().split('T')[0];
+            currentDateStr = getLocalTodayDate();
             calendarViewDate = new Date(); // 重置月曆到本月
             renderAll();
         }
@@ -1307,7 +1332,7 @@
                     <span class="${t.completed?'line-through text-slate-400':''} flex items-center">${icons} ${t.title}</span>
                     <div class="flex items-center">
                         ${t.date 
-                            ? `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">${t.date}</span>` 
+                            ? `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">完成日期： ${t.date}</span>` 
                             : `<span class="text-xs bg-slate-200 px-2 py-1 rounded mr-2">待辦</span>`
                         }
                         <button onclick="closeModal(null, 'modal-detail'); ${t.date ? `openEditTaskModal('${t.id}')` : `openEditGoalModal('${t.id}')`}" class="p-1 text-slate-400 hover:text-slate-600">
