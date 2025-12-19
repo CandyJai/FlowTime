@@ -1031,9 +1031,10 @@
 
         function calculateProgress(type, id) {
             const relatedTasks = appData.todos.filter(t => t.linkId === id || t.parentId === id);
-            const total = relatedTasks.length;
+            const validTasks = relatedTasks.filter(t => !(t.completed && t.isPartial));
+            const total = validTasks.length;
             if (total === 0) return 0;
-            const completedT = relatedTasks.filter(t => t.completed).length;
+            const completedT = relatedTasks.filter(t => t.completed && !t.isPartial).length;
             return Math.round(((completedT) / total) * 100);
         }
 
@@ -1203,6 +1204,8 @@
             document.getElementById('input-task-urgent').checked = t.isUrgent || false;
             document.getElementById('input-task-priority').checked = t.isPriority || false;
             document.getElementById('input-task-deadline').value = t.deadline || '';
+            document.getElementById('input-task-link').value = t.linkID;
+
 
             toggleTimeBlock(t.timeBlock || 'morning');
             
